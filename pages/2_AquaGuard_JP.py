@@ -1,17 +1,31 @@
 import streamlit as st
 
-# --- TRAVA DE SEGURANÇA ---
+# ==========================================
+# 1. TRAVA DE SEGURANÇA (OBRIGATÓRIO NO TOPO)
+# ==========================================
 if 'autenticado' not in st.session_state or not st.session_state.autenticado:
-    st.error("🚨 Acesso negado! Por favor, faz login na página principal (main).")
-    st.stop()
+    st.error("🚨 Acesso negado! Por favor, faça login na página principal (main).")
+    st.stop()  # Para o código aqui se não houver login
 
-# Agora que sabemos que está logado, podemos usar a variável
-usuario = st.session_state.usuario_atual
+# ==========================================
+# 2. CONFIGURAÇÃO DA PÁGINA
+# ==========================================
+usuario = st.session_state.get('usuario_atual', 'Explorador')
 
 st.title("💧 Sistema AquaGuard JP")
 st.subheader(f"Colaborador: {usuario}")
 
-st.info("Painel de monitorização de recursos hídricos em João Pessoa.")
+st.markdown("""
+---
+### 🌊 Monitoramento Hídrico
+Bem-vindo ao painel de controle da **LEGO Explorers**. 
+Aqui monitoramos o nível das águas e o consumo em João Pessoa.
+""")
 
-# Exemplo de funcionalidade (podes manter o teu código original abaixo disto)
-st.metric(label="Nível do Reservatório", value="85%", delta="2%")
+# Exemplo de Dashboard
+col1, col2, col3 = st.columns(3)
+col1.metric("Nível do Rio", "78%", "+2%")
+col2.metric("Qualidade", "Excelente", "98/100")
+col3.metric("Consumo Médio", "120L", "-5%")
+
+st.info("Dica: Use os relatórios mensais para análise de desperdício.")
