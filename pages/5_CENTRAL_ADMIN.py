@@ -12,7 +12,7 @@ with st.sidebar:
 
 # --- 2. TRAVA DE SEGURANÇA (SÓ VOCÊ ENTRA) ---
 # Define aqui o nome que você usa para logar
-USER_ADMIN = "friday" 
+USER_ADMIN = "Friday" 
 
 # Verifica se está logado
 if 'autenticado' not in st.session_state or not st.session_state.autenticado:
