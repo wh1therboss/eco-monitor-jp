@@ -10,7 +10,7 @@ if 'autenticado' not in st.session_state or not st.session_state.autenticado:
     st.error("🚨 Por favor, faça login na página principal.")
     st.stop()
 
-# Cabeçalho LEGO Explorers com Hamtaro
+# Identidade LEGO Explorers com Hamtaro
 col_logo, col_titulo = st.columns([1, 4])
 with col_logo:
     st.image("hamtaro.webp", width=100)
@@ -21,30 +21,30 @@ with col_titulo:
 usuario_logado = st.session_state.get('usuario_atual', 'Explorador')
 DATA_DB = "denuncias_ecocoleta.csv"
 
-# --- 2. BANCO DE DADOS (COM CORREÇÃO DE COLUNAS) ---
+# --- 2. BANCO DE DADOS (CORREÇÃO DE COLUNAS) ---
 praias_coords = {
     "Bessa": [-7.085, -34.830], "Manaíra": [-7.092, -34.831], 
     "Tambaú": [-7.114, -34.820], "Cabo Branco": [-7.135, -34.818], 
     "Penha": [-7.165, -34.795], "Seixas": [-7.155, -34.790]
 }
 
-# Lista oficial de colunas que o sistema precisa
-colunas_necessarias = ['Data', 'Bairro', 'Rua', 'Numero', 'Referencia', 'Tipo', 'Autor', 'lat', 'lon']
+# Lista completa das colunas que o sistema precisa ter
+colunas_sistema = ['Data', 'Bairro', 'Rua', 'Numero', 'Referencia', 'Tipo', 'Autor', 'lat', 'lon']
 
 if 'db_relatos' not in st.session_state:
     if os.path.exists(DATA_DB):
         df_lido = pd.read_csv(DATA_DB)
-        # CORREÇÃO DO ERRO: Garante que todas as colunas novas existam
-        for col in colunas_necessarias:
+        # RESOLUÇÃO DO ERRO: Adiciona colunas faltando se o CSV for antigo
+        for col in colunas_sistema:
             if col not in df_lido.columns:
-                df_lido[col] = "Não informado"
+                df_lido[col] = "N/A"
         st.session_state.db_relatos = df_lido
     else:
-        st.session_state.db_relatos = pd.DataFrame(columns=colunas_necessarias)
+        st.session_state.db_relatos = pd.DataFrame(columns=colunas_sistema)
 
-# --- 3. FORMULÁRIO DETALHADO E ANÓNIMO ---
+# --- 3. FORMULÁRIO DETALHADO ---
 with st.form("nova_denuncia", clear_on_submit=True):
-    st.markdown("### 📍 Detalhes da Localização")
+    st.markdown("### 📍 Registrar Ocorrência")
     bairro_sel = st.selectbox("Bairro/Praia:", list(praias_coords.keys()))
     rua = st.text_input("Rua/Avenida:")
     
@@ -52,41 +52,40 @@ with st.form("nova_denuncia", clear_on_submit=True):
     with col_n: num = st.text_input("Nº:")
     with col_r: ref = st.text_input("Ponto de Referência:")
     
-    tipo_lixo = st.radio("Tipo de Resíduo:", ["Plástico", "Orgânico", "Entulho", "Rede de Pesca"], horizontal=True)
-    fazer_anonimo = st.checkbox("Fazer denúncia de forma anónima 🕵️")
+    tipo_lixo = st.radio("Tipo de Resíduo:", ["Plástico", "Orgânico", "Entulho", "Redes"], horizontal=True)
+    fazer_anonimo = st.checkbox("Denúncia Anônima 🕵️")
     
-    if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
+    if st.form_submit_button("🚀 ENVIAR"):
         if rua and ref:
-            autor_final = "Anónimo" if fazer_anonimo else usuario_logado
-            novo_relato = {
+            autor = "Anônimo" if fazer_anonimo else usuario_logado
+            novo = {
                 'Data': datetime.now().strftime("%d/%m/%Y"),
                 'Bairro': bairro_sel, 'Rua': rua, 'Numero': num if num else "S/N",
-                'Referencia': ref, 'Tipo': tipo_lixo, 'Autor': autor_final,
+                'Referencia': ref, 'Tipo': tipo_lixo, 'Autor': autor,
                 'lat': praias_coords[bairro_sel][0], 'lon': praias_coords[bairro_sel][1]
             }
-            # Adiciona ao banco e guarda no CSV
-            st.session_state.db_relatos = pd.concat([st.session_state.db_relatos, pd.DataFrame([novo_relato])], ignore_index=True)
+            st.session_state.db_relatos = pd.concat([st.session_state.db_relatos, pd.DataFrame([novo])], ignore_index=True)
             st.session_state.db_relatos.to_csv(DATA_DB, index=False)
-            st.success(f"✅ Denúncia registada! (Autor: {autor_final})")
+            st.success("✅ Denúncia registrada!")
             st.rerun()
         else:
-            st.warning("⚠️ Por favor, preencha a Rua e o Ponto de Referência.")
+            st.warning("Preencha a Rua e a Referência!")
 
-# --- 4. MAPA E TABELA (SEM ERROS) ---
+# --- 4. MAPA E TABELA (BLINDADOS) ---
 st.write("---")
-st.subheader("📍 Mapa de Ocorrências")
+st.subheader("📍 Mapa de Resíduos")
 m = folium.Map(location=[-7.120, -34.820], zoom_start=12)
 
 for _, r in st.session_state.db_relatos.iterrows():
-    cor_ponto = 'red' if r['Autor'] == 'Anónimo' else 'blue'
+    cor = 'red' if r['Autor'] == 'Anônimo' else 'blue'
     folium.Marker(
         [r['lat'], r['lon']], 
-        popup=f"<b>{r['Tipo']}</b><br>Ref: {r['Referencia']}<br>Por: {r['Autor']}",
-        icon=folium.Icon(color=cor_ponto, icon='trash')
+        popup=f"{r['Tipo']} - Ref: {r['Referencia']}",
+        icon=folium.Icon(color=cor, icon='trash')
     ).add_to(m)
 
 folium_static(m, width=900)
 
-# Tabela final - Exibe apenas o que existe com segurança
-st.subheader("📊 Histórico de Denúncias")
+st.subheader("📊 Histórico de Coleta")
+# Exibe apenas as colunas que agora temos certeza que existem
 st.dataframe(st.session_state.db_relatos[['Data', 'Bairro', 'Rua', 'Tipo', 'Autor']], use_container_width=True)
