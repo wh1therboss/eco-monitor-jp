@@ -1,107 +1,123 @@
 import streamlit as st
 import pandas as pd
 import folium
-from streamlit_folium import folium_static
+from streamlit_folium import st_folium
 from datetime import datetime
 import os
+from geopy.geocoders import Nominatim
 
-# --- 1. SEGURANÇA E IDENTIDADE (SIDEBAR) ---
+# --- 1. CONFIGURAÇÃO DA SIDEBAR ---
 with st.sidebar:
     st.image("hamtaro.webp", width=150)
     st.markdown("<h2 style='text-align: center;'>LEGO EXPLORERS</h2>", unsafe_allow_html=True)
     st.write("---")
-    st.markdown("### 💡 Redes de Iluminação")
-    st.success("MANUTENÇÃO: ATIVA")
-    st.metric("Eficiência LED", "88%", "+5%")
-    st.info("Reporte falhas para garantir a segurança noturna em nossa capital.")
+    st.markdown("### 💡 IluminaJP")
+    st.info("Relate postes apagados ou problemas na rede elétrica de João Pessoa.")
+    st.write("---")
+    st.caption("version: 0.1")
 
+# --- 2. SEGURANÇA E BANCO DE DADOS ---
 if 'autenticado' not in st.session_state or not st.session_state.autenticado:
-    st.error("🚨 Por favor, faça login na página principal para acessar o sistema.")
+    st.error("🚨 Login necessário na página principal.")
     st.stop()
 
-# Cabeçalho da página
-col_logo, col_titulo = st.columns([1, 4])
-with col_logo:
-    st.image("hamtaro.webp", width=100)
-with col_titulo:
-    st.title("LEGO Explorers")
-    st.subheader("💡 Ilumina JP - Manutenção de Postes")
+geolocator = Nominatim(user_agent="lego_explorer_ilumina_jp")
+DATA_LUZ = "alertas_iluminacao.csv"
+colunas_luz = ['Data', 'Endereço_Completo', 'Problema', 'Autor', 'lat', 'lon', 'Status']
 
-usuario_logado = st.session_state.get('usuario_atual', 'Explorador')
-DATA_DB_LUZ = "alertas_iluminacao.csv"
+# Função de carregamento sempre atualizado
+def carregar_dados_luz():
+    if os.path.exists(DATA_LUZ):
+        df = pd.read_csv(DATA_LUZ)
+        if 'Endereço_Completo' not in df.columns:
+            return pd.DataFrame(columns=colunas_luz)
+        return df
+    return pd.DataFrame(columns=colunas_luz)
 
-# --- 2. BANCO DE DADOS (PREVENÇÃO DE ERROS) ---
-bairros_jp = {
-    "Centro": [-7.115, -34.885], "Mangabeira": [-7.165, -34.845],
-    "Valentina": [-7.195, -34.860], "Manaíra": [-7.105, -34.835],
-    "Bessa": [-7.085, -34.835], "Cristo": [-7.145, -34.870],
-    "Cabo Branco": [-7.130, -34.820], "Bancários": [-7.150, -34.830]
-}
+st.session_state.db_luz = carregar_dados_luz()
 
-colunas_luz = ['Data', 'Bairro', 'Rua', 'Referencia', 'Problema', 'Autor', 'lat', 'lon']
+# Inicialização de coordenadas para o mapa
+if 'luz_lat' not in st.session_state:
+    st.session_state.luz_lat = -7.1153 
+    st.session_state.luz_lon = -34.8611
+    st.session_state.luz_endereco = ""
 
-if 'db_luz' not in st.session_state:
-    if os.path.exists(DATA_DB_LUZ):
-        df_lido = pd.read_csv(DATA_DB_LUZ)
-        # Garante que colunas novas não causem KeyError
-        for col in colunas_luz:
-            if col not in df_lido.columns: df_lido[col] = "N/A"
-        st.session_state.db_luz = df_lido
-    else:
-        st.session_state.db_luz = pd.DataFrame(columns=colunas_luz)
+st.title("💡 IluminaJP - Gestão de Iluminação")
 
-# --- 3. FORMULÁRIO COM MAIS OPÇÕES ---
-with st.form("alerta_iluminacao", clear_on_submit=True):
-    st.markdown("### 🔦 Reportar Falha ou Sugestão")
+# --- 3. FORMULÁRIO DE ALERTA ---
+with st.form("form_iluminacao", clear_on_submit=True):
+    st.markdown("### 🔦 Relatar Problema de Iluminação")
     
-    bairro_sel = st.selectbox("Bairro:", list(bairros_jp.keys()))
-    rua = st.text_input("Rua/Avenida:")
-    ref = st.text_input("Ponto de Referência (Ex: Em frente à farmácia):")
-    
-    # Lista expandida de problemas
-    tipo_falha = st.selectbox("O que está acontecendo?", [
-        "Lâmpada Apagada (Poste Escuro)", 
-        "Lâmpada Acesa durante o Dia", 
-        "Lâmpada Piscando (Efeito Estroboscópico)",
-        "Poste Danificado/Caído",
-        "Fiação Solta ou Exposta",
-        "Curto-circuito/Faíscas",
-        "Área que Necessita de Novo Poste",
-        "Braço de Iluminação Quebrado",
-        "Transformador com Barulho Estranho"
+    col_rua, col_num = st.columns([3, 1])
+    with col_rua:
+        rua_luz = st.text_input("Rua/Avenida do Poste:", value=st.session_state.luz_endereco)
+    with col_num:
+        num_luz = st.text_input("Nº Prox:")
+
+    problema = st.selectbox("Tipo de Defeito:", [
+        "🚫 Poste com Lâmpada Apagada (Noite toda)",
+        "🔄 Lâmpada Acesa Durante o Dia",
+        "⚠️ Lâmpada Piscando/Oscilando",
+        "💥 Poste Quebrado ou Danificado",
+        "🔌 Fiação Exposta ou Curto-Circuito",
+        "🌳 Árvore Galhando nos Fios",
+        "🧱 Braço do Poste Desprendido"
     ])
     
-    anonimo = st.checkbox("Relatar de forma anônima 🕵️")
-    
-    if st.form_submit_button("🚀 ENVIAR SOLICITAÇÃO"):
-        if rua and ref:
-            autor_final = "Anônimo" if anonimo else usuario_logado
+    ref_luz = st.text_input("Referência (Ex: Em frente à praça):")
+    anonimo = st.checkbox("Relato Anônimo")
+
+    if st.form_submit_button("🚀 ENVIAR ALERTA"):
+        if rua_luz:
+            autor = "Anônimo" if anonimo else st.session_state.get('usuario_atual', 'Explorador')
+            endereco_final = f"{rua_luz}, {num_luz}" if num_luz else rua_luz
+            
             novo_alerta = {
-                'Data': datetime.now().strftime("%d/%m/%Y"),
-                'Bairro': bairro_sel, 'Rua': rua, 'Referencia': ref,
-                'Problema': tipo_falha, 'Autor': autor_final,
-                'lat': bairros_jp[bairro_sel][0], 'lon': bairros_jp[bairro_sel][1]
+                'Data': datetime.now().strftime("%d/%m/%Y %H:%M"),
+                'Endereço_Completo': endereco_final,
+                'Problema': problema,
+                'Autor': autor,
+                'lat': st.session_state.luz_lat,
+                'lon': st.session_state.luz_lon,
+                'Status': 'Pendente'
             }
-            st.session_state.db_luz = pd.concat([st.session_state.db_luz, pd.DataFrame([novo_alerta])], ignore_index=True)
-            st.session_state.db_luz.to_csv(DATA_DB_LUZ, index=False)
-            st.success("✅ Ordem de serviço aberta! Obrigado por colaborar.")
+            
+            df_novo = pd.concat([st.session_state.db_luz, pd.DataFrame([novo_alerta])], ignore_index=True)
+            df_novo.to_csv(DATA_LUZ, index=False)
+            
+            st.success(f"✅ Alerta enviado! Protocolo gerado para: {endereco_final}")
+            st.session_state.luz_endereco = ""
             st.rerun()
         else:
-            st.warning("⚠️ Forneça o nome da rua e a referência para a equipe técnica.")
+            st.warning("⚠️ Use o mapa abaixo para marcar a localização do poste.")
 
-# --- 4. MAPA E HISTÓRICO ---
+# --- 4. MAPA INTERATIVO (EMBAIXO) ---
 st.write("---")
-st.subheader("📍 Pontos de Manutenção Pendente")
-m_luz = folium.Map(location=[-7.135, -34.850], zoom_start=13)
+st.subheader("📍 Marque o Poste no Mapa")
+st.info("Clique no local exato do poste para capturar o endereço automaticamente.")
 
-for _, r in st.session_state.db_luz.iterrows():
-    folium.Marker(
-        [r['lat'], r['lon']],
-        popup=f"🚨 {r['Problema']}\nLocal: {r['Rua']}",
-        icon=folium.Icon(color='orange', icon='bolt', prefix='fa')
-    ).add_to(m_luz)
+m_luz = folium.Map(location=[st.session_state.luz_lat, st.session_state.luz_lon], zoom_start=15)
+folium.Marker(
+    [st.session_state.luz_lat, st.session_state.luz_lon], 
+    icon=folium.Icon(color='orange', icon='bolt', prefix='fa')
+).add_to(m_luz)
 
-folium_static(m_luz, width=700)
+output_luz = st_folium(m_luz, width=700, height=350, key="mapa_luz")
 
-st.subheader("📋 Status das Solicitações")
-st.dataframe(st.session_state.db_luz[['Data', 'Bairro', 'Rua', 'Problema', 'Autor']], use_container_width=True)
+if output_luz['last_clicked']:
+    lt, ln = output_luz['last_clicked']['lat'], output_luz['last_clicked']['lng']
+    if lt != st.session_state.luz_lat:
+        st.session_state.luz_lat, st.session_state.luz_lon = lt, ln
+        try:
+            location = geolocator.reverse(f"{lt}, {ln}")
+            if location: st.session_state.luz_endereco = location.address.split(',')[0]
+        except: st.session_state.luz_endereco = "Localização capturada"
+        st.rerun()
+
+# --- 5. HISTÓRICO DE ALERTAS ---
+st.write("---")
+st.subheader("📋 Status dos Reparos em JP")
+if not st.session_state.db_luz.empty:
+    st.dataframe(st.session_state.db_luz.iloc[::-1][['Data', 'Endereço_Completo', 'Problema', 'Status']], use_container_width=True)
+else:
+    st.info("Nenhum problema de iluminação relatado nesta área.")
