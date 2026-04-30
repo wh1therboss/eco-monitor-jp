@@ -23,13 +23,20 @@ if 'autenticado' not in st.session_state or not st.session_state.autenticado:
 
 geolocator = Nominatim(user_agent="lego_explorer_jp_v2")
 DATA_DB = "denuncias_ecocoleta.csv"
+colunas_certas = ['Data', 'Endereço_Completo', 'Tipo', 'Autor', 'lat', 'lon', 'Status']
 
+# --- FUNÇÃO DE AJUSTE DE BANCO DE DADOS ---
 if 'db_relatos' not in st.session_state:
     if os.path.exists(DATA_DB):
-        st.session_state.db_relatos = pd.read_csv(DATA_DB)
+        df_lido = pd.read_csv(DATA_DB)
+        # Se a coluna nova não existir, resetamos o banco para evitar o erro fatal
+        if 'Endereço_Completo' not in df_lido.columns:
+            st.warning("⚠️ Atualizando formato do banco de dados...")
+            df_lido = pd.DataFrame(columns=colunas_certas)
+            df_lido.to_csv(DATA_DB, index=False)
+        st.session_state.db_relatos = df_lido
     else:
-        # Criando o DataFrame com a coluna Endereço_Completo
-        st.session_state.db_relatos = pd.DataFrame(columns=['Data', 'Endereço_Completo', 'Tipo', 'Autor', 'lat', 'lon', 'Status'])
+        st.session_state.db_relatos = pd.DataFrame(columns=colunas_certas)
 
 # Inicialização de coordenadas
 if 'clique_lat' not in st.session_state:
@@ -49,7 +56,6 @@ with st.form("form_denuncia", clear_on_submit=True):
     with col_num:
         numero_input = st.text_input("Nº:")
 
-    # Opções Detalhadas de Resíduos
     tipo = st.selectbox("Tipo de Resíduo Específico:", [
         "📦 Descarte Irregular de Plásticos, PET e Embalagens",
         "📄 Papéis, Papelão e Resíduos de Escritório",
@@ -71,8 +77,6 @@ with st.form("form_denuncia", clear_on_submit=True):
     if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
         if rua_input:
             autor = "Anônimo" if anonimo else st.session_state.get('usuario_atual', 'Explorador')
-            
-            # Unindo Rua e Número para o banco de dados
             endereco_final = f"{rua_input}, {numero_input}" if numero_input else rua_input
             
             nova_denuncia = {
@@ -97,36 +101,28 @@ with st.form("form_denuncia", clear_on_submit=True):
 # --- 4. MAPA INTERATIVO (EMBAIXO) ---
 st.write("---")
 st.subheader("📍 Ajuste a Localização no Mapa")
-st.info("Clique na rua exata para capturar o endereço automaticamente.")
 
 m_selecao = folium.Map(location=[st.session_state.clique_lat, st.session_state.clique_lon], zoom_start=15)
-folium.Marker(
-    [st.session_state.clique_lat, st.session_state.clique_lon], 
-    icon=folium.Icon(color='red', icon='trash')
-).add_to(m_selecao)
+folium.Marker([st.session_state.clique_lat, st.session_state.clique_lon], icon=folium.Icon(color='red', icon='trash')).add_to(m_selecao)
 
-# Captura do clique
 output = st_folium(m_selecao, width=700, height=350, key="mapa_embaixo")
 
 if output['last_clicked']:
     lat_clique = output['last_clicked']['lat']
     lon_clique = output['last_clicked']['lng']
-    
     if lat_clique != st.session_state.clique_lat:
         st.session_state.clique_lat = lat_clique
         st.session_state.clique_lon = lon_clique
         try:
             location = geolocator.reverse(f"{lat_clique}, {lon_clique}")
-            if location:
-                # Pega apenas o nome da rua para o campo de texto
-                st.session_state.endereco_clique = location.address.split(',')[0]
-        except:
-            st.session_state.endereco_clique = "Localização capturada"
+            if location: st.session_state.endereco_clique = location.address.split(',')[0]
+        except: st.session_state.endereco_clique = "Localização capturada"
         st.rerun()
 
-# --- 5. TABELA DE HISTÓRICO ---
+# --- 5. TABELA DE HISTÓRICO (CORRIGIDA) ---
 st.write("---")
 st.subheader("📋 Registro de Ocorrências")
 if not st.session_state.db_relatos.empty:
-    # Inverte para mostrar as mais recentes no topo
-    st.dataframe(st.session_state.db_relatos.iloc[::-1][['Data', 'Endereço_Completo', 'Tipo', 'Status']], use_container_width=True)
+    # Garante que só tentamos exibir colunas que REALMENTE existem no DataFrame atual
+    colunas_disponiveis = [c for c in ['Data', 'Endereço_Completo', 'Tipo', 'Status'] if c in st.session_state.db_relatos.columns]
+    st.dataframe(st.session_state.db_relatos.iloc[::-1][colunas_disponiveis], use_container_width=True)
