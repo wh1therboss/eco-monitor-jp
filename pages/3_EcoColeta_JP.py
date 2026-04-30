@@ -12,7 +12,7 @@ with st.sidebar:
     st.markdown("<h2 style='text-align: center;'>LEGO EXPLORERS</h2>", unsafe_allow_html=True)
     st.write("---")
     st.markdown("### ♻️ Gestão de Resíduos")
-    st.info("Preencha os dados e use o mapa abaixo para o ajuste fino da localização.")
+    st.info("Preencha os dados e use o mapa abaixo para o ajuste fino.")
     st.write("---")
     st.caption("version: 0.1")
 
@@ -25,18 +25,18 @@ geolocator = Nominatim(user_agent="lego_explorer_jp_v2")
 DATA_DB = "denuncias_ecocoleta.csv"
 colunas_certas = ['Data', 'Endereço_Completo', 'Tipo', 'Autor', 'lat', 'lon', 'Status']
 
-# --- FUNÇÃO DE AJUSTE DE BANCO DE DADOS ---
-if 'db_relatos' not in st.session_state:
+# --- FUNÇÃO DE CARREGAMENTO FORÇADO (RESOLVE O SEU PROBLEMA) ---
+def atualizar_dados():
     if os.path.exists(DATA_DB):
         df_lido = pd.read_csv(DATA_DB)
-        # Se a coluna nova não existir, resetamos o banco para evitar o erro fatal
+        # Se as colunas estiverem erradas ou o arquivo for resetado pelo Admin
         if 'Endereço_Completo' not in df_lido.columns:
-            st.warning("⚠️ Atualizando formato do banco de dados...")
-            df_lido = pd.DataFrame(columns=colunas_certas)
-            df_lido.to_csv(DATA_DB, index=False)
-        st.session_state.db_relatos = df_lido
-    else:
-        st.session_state.db_relatos = pd.DataFrame(columns=colunas_certas)
+            return pd.DataFrame(columns=colunas_certas)
+        return df_lido
+    return pd.DataFrame(columns=colunas_certas)
+
+# Sempre recarrega do arquivo para garantir que o que o Admin fez apareça aqui
+st.session_state.db_relatos = atualizar_dados()
 
 # Inicialização de coordenadas
 if 'clique_lat' not in st.session_state:
@@ -89,14 +89,15 @@ with st.form("form_denuncia", clear_on_submit=True):
                 'Status': 'Pendente'
             }
             
-            st.session_state.db_relatos = pd.concat([st.session_state.db_relatos, pd.DataFrame([nova_denuncia])], ignore_index=True)
-            st.session_state.db_relatos.to_csv(DATA_DB, index=False)
+            # Adiciona ao DataFrame e salva no CSV
+            df_atualizado = pd.concat([st.session_state.db_relatos, pd.DataFrame([nova_denuncia])], ignore_index=True)
+            df_atualizado.to_csv(DATA_DB, index=False)
             
             st.success(f"✅ Denúncia enviada! Local: {endereco_final}")
             st.session_state.endereco_clique = ""
             st.rerun()
         else:
-            st.warning("⚠️ Preencha o nome da rua ou selecione no mapa abaixo.")
+            st.warning("⚠️ Selecione a rua no mapa abaixo.")
 
 # --- 4. MAPA INTERATIVO (EMBAIXO) ---
 st.write("---")
@@ -119,10 +120,11 @@ if output['last_clicked']:
         except: st.session_state.endereco_clique = "Localização capturada"
         st.rerun()
 
-# --- 5. TABELA DE HISTÓRICO (CORRIGIDA) ---
+# --- 5. TABELA DE HISTÓRICO ---
 st.write("---")
 st.subheader("📋 Registro de Ocorrências")
 if not st.session_state.db_relatos.empty:
-    # Garante que só tentamos exibir colunas que REALMENTE existem no DataFrame atual
-    colunas_disponiveis = [c for c in ['Data', 'Endereço_Completo', 'Tipo', 'Status'] if c in st.session_state.db_relatos.columns]
-    st.dataframe(st.session_state.db_relatos.iloc[::-1][colunas_disponiveis], use_container_width=True)
+    col_exibir = [c for c in ['Data', 'Endereço_Completo', 'Tipo', 'Status'] if c in st.session_state.db_relatos.columns]
+    st.dataframe(st.session_state.db_relatos.iloc[::-1][col_exibir], use_container_width=True)
+else:
+    st.info("Nenhuma denúncia no momento.")
