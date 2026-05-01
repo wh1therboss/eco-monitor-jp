@@ -1,114 +1,83 @@
 import streamlit as st
 import pandas as pd
-import os
+import plotly.express as px
+from streamlit_gsheets import GSheetsConnection
 
-# --- 1. CONFIGURAÇÃO DA SIDEBAR (IDENTIDADE LEGO) ---
+# --- 1. CONFIGURAÇÃO ---
+st.set_page_config(page_title="Admin - EcoMonitor", layout="wide")
+
 with st.sidebar:
     st.image("hamtaro.webp", width=150)
-    st.markdown("<h2 style='text-align: center;'>LEGO EXPLORERS</h2>", unsafe_allow_html=True)
+    st.markdown("### 🛠️ PAINEL DE CONTROLE")
     st.write("---")
-    st.markdown("### 🔑 Terminal de Comando")
-    if st.session_state.get('admin_logado', False):
-        st.success("SISTEMA: ONLINE")
-        if st.button("Encerrar Sessão"):
-            st.session_state.admin_logado = False
-            st.rerun()
-    else:
-        st.error("SISTEMA: BLOQUEADO")
 
-# --- 2. TELA DE LOGIN INTERNA ---
-def tela_login():
-    st.title("🔐 Acesso Restrito - Friday Protocol")
-    
-    with st.container():
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.image("hamtaro.webp", width=150)
-        with col2:
-            st.markdown("### Identifique-se para acessar o HQ")
-            user_input = st.text_input("Usuário:")
-            pass_input = st.text_input("Senha:", type="password")
-            
-            if st.button("Acessar Central"):
-                # Verificação das credenciais que você definiu
-                if user_input == "LEGO EXPLORERS HQ" and pass_input == "09122307":
-                    st.session_state.admin_logado = True
-                    st.success("Acesso concedido! Carregando sistemas...")
-                    st.rerun()
-                else:
-                    st.error("Credenciais incorretas. Alerta de intruso enviado!")
+# Verificação de Login
+if 'autenticado' not in st.session_state or not st.session_state.autenticado:
+    st.error("🚨 Acesso restrito. Faça login na página principal.")
+    st.stop()
 
-# --- 3. LÓGICA DE EXIBIÇÃO ---
-if not st.session_state.get('admin_logado', False):
-    tela_login()
-    st.stop() # Interrompe o código aqui se não estiver logado
+# --- 2. CONEXÃO COM A NUVEM ---
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- 4. CENTRAL ADMIN (SÓ APARECE SE LOGAR COM SUCESSO) ---
-st.title("🖥️ Central de Comando LEGO Explorers")
-st.subheader("Bem-vinda, Friday. Status: Total Control.")
-
-DATA_COLETA = "denuncias_ecocoleta.csv"
-DATA_LUZ = "alertas_iluminacao.csv"
-
-# Função para carregar dados com suporte a STATUS
-def carregar_dados(caminho, colunas_padrao):
-    if os.path.exists(caminho):
-        df = pd.read_csv(caminho)
-        if 'Status' not in df.columns:
-            df['Status'] = "Pendente"
-        for col in colunas_padrao:
-            if col not in df.columns: df[col] = "N/A"
+def carregar_dados():
+    try:
+        # ttl=0 para garantir que o admin sempre veja o dado mais novo
+        df = conn.read(ttl=0)
         return df
-    return pd.DataFrame(columns=colunas_padrao + ['Status'])
+    except:
+        return pd.DataFrame()
 
-df_lixo = carregar_dados(DATA_COLETA, ['Data', 'Rua', 'Tipo', 'Autor'])
-df_luz = carregar_dados(DATA_LUZ, ['Data', 'Bairro', 'Rua', 'Problema', 'Autor'])
+df = carregar_dados()
 
-# --- 5. GESTÃO DE STATUS ---
-tab1, tab2, tab3 = st.tabs(["♻️ Gestão de Lixo", "💡 Gestão de Luz", "⚙️ Configurações"])
+st.title("📊 Administração Central - LEGO Explorers")
+st.markdown("Monitoramento em tempo real das ocorrências em João Pessoa.")
 
-with tab1:
-    st.markdown("### 📋 Atualizar Pedidos de Coleta")
-    if not df_lixo.empty:
-        idx = st.selectbox("Selecione o ID da Denúncia:", df_lixo.index, key="admin_lixo_idx")
-        novo_st = st.selectbox("Mudar Status para:", 
-                             ["Pendente", "Em Processo", "Equipe a Caminho", "Resolvido", "Falso Alerta"], 
-                             key="admin_lixo_st")
-        
-        if st.button("Atualizar Status EcoColeta"):
-            df_lixo.at[idx, 'Status'] = novo_st
-            df_lixo.to_csv(DATA_COLETA, index=False)
-            st.success("Status atualizado no banco de dados!")
-            st.rerun()
-        
-        st.write("---")
-        st.dataframe(df_lixo, use_container_width=True)
-    else:
-        st.info("Nenhuma denúncia registrada.")
+if df.empty:
+    st.warning("⚠️ Nenhuma denúncia encontrada na planilha do Google.")
+else:
+    # --- 3. MÉTRICAS RÁPIDAS ---
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total de Denúncias", len(df))
+    with col2:
+        pendentes = len(df[df['Status'] == 'Pendente'])
+        st.metric("Pendentes", pendentes, delta_color="inverse")
+    with col3:
+        st.metric("Cidades Atendidas", "1 (João Pessoa)")
 
-with tab2:
-    st.markdown("### 🔌 Manutenção de Iluminação")
-    if not df_luz.empty:
-        idx_l = st.selectbox("Selecione o ID do Alerta:", df_luz.index, key="admin_luz_idx")
-        novo_st_l = st.selectbox("Mudar Status para:", 
-                               ["Pendente", "Manutenção Agendada", "Lâmpada Trocada", "Aguardando Peça"], 
-                               key="admin_luz_st")
-        
-        if st.button("Atualizar Status IluminaJP"):
-            df_luz.at[idx_l, 'Status'] = novo_st_l
-            df_luz.to_csv(DATA_LUZ, index=False)
-            st.success("Ordem de serviço atualizada!")
-            st.rerun()
-            
-        st.write("---")
-        st.dataframe(df_luz, use_container_width=True)
-    else:
-        st.info("Sem alertas de iluminação.")
+    st.write("---")
 
-with tab3:
-    st.markdown("### 🛠️ Painel do Desenvolvedor")
-    if st.button("🚨 APAGAR TODOS OS REGISTROS"):
-        if os.path.exists(DATA_COLETA): os.remove(DATA_COLETA)
-        if os.path.exists(DATA_LUZ): os.remove(DATA_LUZ)
-        st.warning("Bancos de dados resetados com sucesso.")
+    # --- 4. GRÁFICOS E ANÁLISES ---
+    col_esq, col_dir = st.columns(2)
+
+    with col_esq:
+        st.subheader("📦 Tipos de Resíduos Reportados")
+        fig_pizza = px.pie(df, names='Tipo', hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
+        st.plotly_chart(fig_pizza, use_container_width=True)
+
+    with col_dir:
+        st.subheader("📈 Evolução das Denúncias")
+        # Pequeno ajuste para garantir que a data seja lida corretamente
+        df['Data_Limpa'] = pd.to_datetime(df['Data'], errors='coerce').dt.date
+        contagem_data = df.groupby('Data_Limpa').size().reset_index(name='Quantidade')
+        fig_linha = px.line(contagem_data, x='Data_Limpa', y='Quantidade', markers=True)
+        st.plotly_chart(fig_linha, use_container_width=True)
+
+    # --- 5. TABELA DE GERENCIAMENTO ---
+    st.write("---")
+    st.subheader("📋 Lista de Ocorrências (Google Sheets)")
+    
+    # Filtro rápido
+    filtro_tipo = st.multiselect("Filtrar por Tipo:", options=df['Tipo'].unique())
+    
+    df_exibir = df.copy()
+    if filtro_tipo:
+        df_exibir = df_exibir[df_exibir['Tipo'].isin(filtro_tipo)]
+    
+    st.dataframe(df_exibir.iloc[::-1], use_container_width=True)
+
+    # Botão de Atualização Manual
+    if st.button("🔄 Forçar Atualização dos Dados"):
         st.rerun()
+
+st.info("💡 Dica: Para alterar o status de 'Pendente' para 'Resolvido', você pode editar diretamente na sua planilha do Google Sheets. As mudanças aparecerão aqui ao atualizar.")
