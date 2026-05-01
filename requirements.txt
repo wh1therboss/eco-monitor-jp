@@ -4,3 +4,4 @@ streamlit-folium
 plotly
 geopy
 st-gsheets-connection
+requests
