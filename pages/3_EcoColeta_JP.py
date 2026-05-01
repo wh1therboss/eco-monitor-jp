@@ -1,114 +1,82 @@
 import streamlit as st
+import pandas as pd
 import folium
 from streamlit_folium import st_folium
+from datetime import datetime
 from geopy.geocoders import Nominatim
+import os
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
+# --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="EcoColeta JP", page_icon="♻️")
 
-# --- 2. CONFIGURAÇÃO DO WHATSAPP ---
-# IMPORTANTE: Coloque seu número com 55 + DDD + Número (tudo junto)
-# Exemplo: "5583988887777"
-MEU_WHATSAPP = "5568992233125" 
+# Caminho do ficheiro (ajusta se o csv estiver noutra pasta)
+CAMINHO_CSV = 'denuncias.csv'
+
+# Função para guardar no CSV
+def salvar_no_csv(nova_linha):
+    # Se o ficheiro já existir, adiciona sem o cabeçalho (mode='a')
+    # Se não existir, cria com o cabeçalho
+    header = not os.path.exists(CAMINHO_CSV)
+    df_aux = pd.DataFrame([nova_linha])
+    df_aux.to_csv(CAMINHO_CSV, mode='a', index=False, header=header, encoding='utf-8')
 
 with st.sidebar:
     st.image("hamtaro.webp", width=150)
-    st.markdown("<h2 style='text-align: center;'>LEGO EXPLORERS</h2>", unsafe_allow_html=True)
+    st.markdown("### LEGO EXPLORERS")
     st.write("---")
-    st.info("📢 As denúncias são enviadas diretamente para o WhatsApp da nossa central.")
-
-# --- 3. LÓGICA DE LOCALIZAÇÃO ---
-geolocator = Nominatim(user_agent="lego_explorer_jp_v4")
-
-if 'clique_lat' not in st.session_state:
-    st.session_state.clique_lat, st.session_state.clique_lon = -7.1153, -34.8611
-    st.session_state.endereco_clique = ""
-
-st.title("♻️ EcoColeta JP")
-st.markdown("Relate o descarte irregular de lixo em João Pessoa de forma rápida!")
-
-# --- 4. FORMULÁRIO ---
-with st.form("form_denuncia_zap"):
-    st.markdown("### 📝 Detalhes da Ocorrência")
-    
-    # O endereço é preenchido automaticamente ao clicar no mapa
-    endereco = st.text_input("Endereço do local:", value=st.session_state.endereco_clique)
-    
-    tipo_lixo = st.selectbox("O que você encontrou?", [
-        "📦 Plásticos e Embalagens",
-        "📄 Papel e Papelão",
-        "🍾 Vidros",
-        "🥫 Metais",
-        "🍎 Resíduos Orgânicos",
-        "🏗️ Entulho de Obras",
-        "🛋️ Móveis e Objetos Grandes",
-        "💻 Lixo Eletrônico",
-        "🌿 Poda e Galhos"
-    ])
-    
-    # Preparando o texto da mensagem
-    # %0A é o código para pular linha no WhatsApp
-    mensagem = (
-        f"🚨 *NOVA DENÚNCIA AMBIENTAL* 🚨%0A%0A"
-        f"📍 *Local:* {endereco}%0A"
-        f"♻️ *Tipo de Lixo:* {tipo_lixo}%0A"
-        f"🌎 *Link do Mapa:* https://www.google.com/maps?q={st.session_state.clique_lat},{st.session_state.clique_lon}"
-    )
-    
-    link_final_whatsapp = f"https://wa.me/{MEU_WHATSAPP}?text={mensagem}"
-
-    enviar = st.form_submit_button("📢 ENVIAR DENÚNCIA")
-    
-    if enviar:
-        if endereco:
-            st.markdown(f"""
-                <div style="text-align: center; padding: 20px; border: 2px solid #2ecc71; border-radius: 10px;">
-                    <p>Quase lá! Clique no botão abaixo para confirmar o envio:</p>
-                    <a href="{link_final_whatsapp}" target="_blank">
-                        <button style="
-                            background-color: #25D366;
-                            color: white;
-                            padding: 15px 30px;
-                            border: none;
-                            border-radius: 5px;
-                            font-size: 18px;
-                            font-weight: bold;
-                            cursor: pointer;">
-                            ✅ CONFIRMAR NO WHATSAPP
-                        </button>
-                    </a>
-                </div>
-            """, unsafe_allow_html=True)
+    if st.button("📊 Ver Dados Locais (DEBUG)"):
+        if os.path.exists(CAMINHO_CSV):
+            dados = pd.read_csv(CAMINHO_CSV)
+            st.dataframe(dados)
         else:
-            st.warning("⚠️ Por favor, clique no mapa abaixo para marcar a localização.")
+            st.error("Ficheiro CSV ainda não criado.")
 
-# --- 5. MAPA INTERATIVO ---
-st.write("---")
-st.subheader("📍 Toque no mapa para marcar o local exato")
-m = folium.Map(location=[st.session_state.clique_lat, st.session_state.clique_lon], zoom_start=15)
-folium.Marker(
-    [st.session_state.clique_lat, st.session_state.clique_lon], 
-    icon=folium.Icon(color='red', icon='trash')
-).add_to(m)
+# --- 2. LÓGICA DE LOCALIZAÇÃO ---
+geolocator = Nominatim(user_agent="lego_explorer_csv_local")
 
-# Exibe o mapa e captura o clique
-map_data = st_folium(m, width=700, height=350, key="mapa_zap")
+if 'lat' not in st.session_state:
+    st.session_state.lat, st.session_state.lon = -7.1153, -34.8611
+    st.session_state.end = ""
 
-if map_data['last_clicked']:
-    lat_c = map_data['last_clicked']['lat']
-    lon_c = map_data['last_clicked']['lng']
+st.title("♻️ EcoColeta JP (Modo CSV Local)")
+
+# --- 3. FORMULÁRIO ---
+with st.form("form_csv", clear_on_submit=True):
+    st.markdown("### 📝 Relatar Ocorrência")
+    end_input = st.text_input("Localização:", value=st.session_state.end)
+    tipo_lixo = st.selectbox("Tipo:", ["Plástico", "Vidro", "Entulho", "Orgânico", "Outros"])
     
-    # Se o clique for diferente do anterior, atualiza
-    if lat_c != st.session_state.clique_lat:
-        st.session_state.clique_lat = lat_c
-        st.session_state.clique_lon = lon_c
-        try:
-            # Tenta descobrir o nome da rua
-            location = geolocator.reverse(f"{lat_c}, {lon_c}")
-            if location:
-                st.session_state.endereco_clique = location.address.split(',')[0]
-        except:
-            st.session_state.endereco_clique = "Localização capturada"
-        st.rerun()
+    if st.form_submit_button("🚀 GRAVAR NO CSV"):
+        if end_input:
+            nova_denuncia = {
+                "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "Endereco": end_input,
+                "Tipo": tipo_lixo,
+                "Lat": st.session_state.lat,
+                "Lon": st.session_state.lon
+            }
+            
+            try:
+                salvar_no_csv(nova_denuncia)
+                st.success("✅ Gravado com sucesso no arquivo local!")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Erro ao gravar: {e}")
+        else:
+            st.warning("⚠️ Selecione o local no mapa.")
 
-st.caption("Ao enviar, o seu aplicativo de WhatsApp será aberto com a mensagem pronta.")
+# --- 4. MAPA ---
+st.write("---")
+m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=15)
+folium.Marker([st.session_state.lat, st.session_state.lon], icon=folium.Icon(color='red')).add_to(m)
+mapa = st_folium(m, width=700, height=350)
+
+if mapa['last_clicked']:
+    lt, ln = mapa['last_clicked']['lat'], mapa['last_clicked']['lng']
+    st.session_state.lat, st.session_state.lon = lt, ln
+    try:
+        loc = geolocator.reverse(f"{lt}, {ln}")
+        st.session_state.end = loc.address.split(',')[0]
+    except: 
+        st.session_state.end = "Local marcado"
+    st.rerun()
