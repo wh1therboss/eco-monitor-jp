@@ -4,45 +4,29 @@ import folium
 from streamlit_folium import st_folium
 from datetime import datetime
 from geopy.geocoders import Nominatim
-from streamlit_gsheets import GSheetsConnection
+import requests  # Importante: Adicione 'requests' no seu requirements.txt
 
 # --- 1. CONFIGURAÇÃO DA SIDEBAR ---
 with st.sidebar:
     st.image("hamtaro.webp", width=150)
     st.markdown("<h2 style='text-align: center;'>LEGO EXPLORERS</h2>", unsafe_allow_html=True)
     st.write("---")
-    st.markdown("### ♻️ Gestão de Resíduos")
-    st.info("Relate descarte irregular de lixo em João Pessoa.")
-    st.write("---")
-    st.caption("version: 0.2 (Cloud)")
+    st.caption("v0.3 - Cloud Sync")
 
-# --- 2. SEGURANÇA E CONEXÃO CLOUD ---
-if 'autenticado' not in st.session_state or not st.session_state.autenticado:
-    st.error("🚨 Login necessário na página principal.")
-    st.stop()
+# --- 2. CONFIGURAÇÃO DO GOOGLE SCRIPT ---
+# COLOQUE O SEU LINK QUE TERMINA EM /exec ENTRE AS ASPAS ABAIXO:
+URL_PROJETO_GOOGLE = "https://script.google.com/macros/s/AKfycbwXi0mTvqcgeQYfjsaJFaV1A0lZWNZDxmciPXWonMPARuE8FlUaPf4gxA5rypxVLQ97/exec"
 
-# Conexão oficial com Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection)
+# --- 3. LOGICA DE LOCALIZAÇÃO ---
+geolocator = Nominatim(user_agent="lego_explorer_jp_v3")
 
-def carregar_dados_google():
-    try:
-        # ttl=0 garante que ele leia os dados novos sempre que a página atualizar
-        return conn.read(ttl=0)
-    except Exception as e:
-        # Se a planilha estiver vazia, cria o DataFrame com as colunas certas
-        return pd.DataFrame(columns=['Data', 'Endereço_Completo', 'Tipo', 'Autor', 'lat', 'lon', 'Status'])
-
-geolocator = Nominatim(user_agent="lego_explorer_jp_cloud_v2")
-
-# Inicialização de coordenadas no mapa
 if 'clique_lat' not in st.session_state:
-    st.session_state.clique_lat = -7.1153 
-    st.session_state.clique_lon = -34.8611
+    st.session_state.clique_lat, st.session_state.clique_lon = -7.1153, -34.8611
     st.session_state.endereco_clique = ""
 
 st.title("♻️ EcoColeta JP")
 
-# --- 3. FORMULÁRIO DE OCORRÊNCIA ---
+# --- 4. FORMULÁRIO DE DENÚNCIA ---
 with st.form("form_denuncia", clear_on_submit=True):
     st.markdown("### 📝 Detalhes da Ocorrência")
     
@@ -53,90 +37,61 @@ with st.form("form_denuncia", clear_on_submit=True):
         numero_input = st.text_input("Nº:")
 
     tipo = st.selectbox("Tipo de Resíduo:", [
-        "📦 Plásticos e Embalagens",
-        "📄 Papéis e Papelão",
-        "🍾 Vidros (Garrafas e Cacos)",
-        "🥫 Metais e Latas",
-        "🍎 Resíduos Orgânicos",
-        "🏗️ Entulho e Construção",
-        "🛋️ Móveis e Grandes Objetos",
-        "💻 Lixo Eletrônico",
-        "🚗 Pneus",
-        "🌿 Poda e Galhos",
-        "🧴 Químicos ou Óleo"
+        "📦 Plásticos/Embalagens", "📄 Papel/Papelão", "🍾 Vidro", 
+        "🥫 Metal", "🍎 Orgânico", "🏗️ Entulho", "🛋️ Móveis", "💻 Eletrônicos"
     ])
     
     anonimo = st.checkbox("Fazer denúncia anônima")
 
-    if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
+    if st.form_submit_button("🚀 ENVIAR PARA A PLANILHA"):
         if rua_input:
             autor = "Anônimo" if anonimo else st.session_state.get('usuario_atual', 'Explorador')
             endereco_final = f"{rua_input}, {numero_input}" if numero_input else rua_input
             
-            # 1. Preparar a nova linha
-            nova_denuncia = {
-                'Data': datetime.now().strftime("%d/%m/%Y %H:%M"),
-                'Endereço_Completo': endereco_final,
-                'Tipo': tipo,
-                'Autor': autor,
-                'lat': st.session_state.clique_lat,
-                'lon': st.session_state.clique_lon,
-                'Status': 'Pendente'
+            # Dados formatados para o Apps Script
+            dados = {
+                "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "Endereço_Completo": endereco_final,
+                "Tipo": tipo,
+                "Autor": autor,
+                "lat": st.session_state.clique_lat,
+                "lon": st.session_state.clique_lon,
+                "Status": "Pendente"
             }
             
             try:
-                # 2. Ler dados atuais
-                df_atual = carregar_dados_google()
+                # Envio via POST para o Google
+                response = requests.post(URL_PROJETO_GOOGLE, json=dados)
                 
-                # 3. Concatenar com a nova denúncia
-                df_final = pd.concat([df_atual, pd.DataFrame([nova_denuncia])], ignore_index=True)
-                
-                # 4. Atualizar a planilha no Google
-                conn.update(data=df_final)
-                
-                st.success(f"✅ Denúncia salva na nuvem! Local: {endereco_final}")
-                st.balloons()
-                st.session_state.endereco_clique = ""
-                st.rerun()
-                
+                if response.status_code == 200:
+                    st.success("✅ Denúncia salva com sucesso na planilha!")
+                    st.balloons()
+                    st.session_state.endereco_clique = ""
+                    st.rerun()
+                else:
+                    st.error(f"Erro no servidor Google: {response.status_code}")
             except Exception as e:
-                st.error(f"Erro ao salvar na nuvem: {e}")
-                st.info("Certifique-se de que a planilha está compartilhada como EDITOR.")
+                st.error(f"Erro de conexão: {e}")
         else:
-            st.warning("⚠️ Informe a rua ou use o mapa abaixo.")
+            st.warning("⚠️ Por favor, selecione um local no mapa ou digite o endereço.")
 
-# --- 4. MAPA INTERATIVO (EMBAIXO) ---
+# --- 5. MAPA PARA SELEÇÃO ---
 st.write("---")
-st.subheader("📍 Ajuste a Localização no Mapa")
+st.subheader("📍 Selecione o Local no Mapa")
+m = folium.Map(location=[st.session_state.clique_lat, st.session_state.clique_lon], zoom_start=15)
+folium.Marker([st.session_state.clique_lat, st.session_state.clique_lon], icon=folium.Icon(color='red')).add_to(m)
 
-m_selecao = folium.Map(location=[st.session_state.clique_lat, st.session_state.clique_lon], zoom_start=15)
-folium.Marker(
-    [st.session_state.clique_lat, st.session_state.clique_lon], 
-    icon=folium.Icon(color='red', icon='trash')
-).add_to(m_selecao)
-
-output = st_folium(m_selecao, width=700, height=350, key="mapa_cloud_final")
+output = st_folium(m, width=700, height=350, key="mapa_sync")
 
 if output['last_clicked']:
-    lat_clique = output['last_clicked']['lat']
-    lon_clique = output['last_clicked']['lng']
-    if lat_clique != st.session_state.clique_lat:
-        st.session_state.clique_lat = lat_clique
-        st.session_state.clique_lon = lon_clique
+    lt, ln = output['last_clicked']['lat'], output['last_clicked']['lng']
+    if lt != st.session_state.clique_lat:
+        st.session_state.clique_lat, st.session_state.clique_lon = lt, ln
         try:
-            location = geolocator.reverse(f"{lat_clique}, {lon_clique}")
-            if location:
-                st.session_state.endereco_clique = location.address.split(',')[0]
-        except:
-            st.session_state.endereco_clique = "Localização capturada"
+            loc = geolocator.reverse(f"{lt}, {ln}")
+            if loc:
+                st.session_state.endereco_clique = loc.address.split(',')[0]
+        except: pass
         st.rerun()
 
-# --- 5. TABELA DE REGISTROS ---
-st.write("---")
-st.subheader("📋 Histórico Global (Google Sheets)")
-df_historico = carregar_dados_google()
-if not df_historico.empty:
-    # Mostra as denúncias mais recentes primeiro
-    st.dataframe(df_historico.iloc[::-1], use_container_width=True)
-else:
-    st.info("Aguardando a primeira denúncia na nuvem...")
+st.info("💡 As denúncias enviadas são registradas em tempo real na planilha do projeto.")
