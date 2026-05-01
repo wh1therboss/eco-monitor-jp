@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from streamlit_gsheets import GSheetsConnection
 
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Admin - EcoMonitor", layout="wide")
@@ -16,68 +15,52 @@ if 'autenticado' not in st.session_state or not st.session_state.autenticado:
     st.error("🚨 Acesso restrito. Faça login na página principal.")
     st.stop()
 
-# --- 2. CONEXÃO COM A NUVEM ---
-conn = st.connection("gsheets", type=GSheetsConnection)
+# --- 2. LEITURA DIRETA DA PLANILHA ---
+# Substitua o link abaixo pelo link da sua planilha (o link normal de visualizar)
+LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1wE0G8tHrRWsroT2iEixV3AwmDbncx3UnGJBRyEa_9Qc"
 
 def carregar_dados():
     try:
-        # ttl=0 para garantir que o admin sempre veja o dado mais novo
-        df = conn.read(ttl=0)
-        return df
-    except:
+        # Lemos a planilha diretamente como um CSV público
+        return pd.read_csv(LINK_PLANILHA)
+    except Exception as e:
+        st.error(f"Erro ao ler planilha: {e}")
         return pd.DataFrame()
 
 df = carregar_dados()
 
 st.title("📊 Administração Central - LEGO Explorers")
-st.markdown("Monitoramento em tempo real das ocorrências em João Pessoa.")
 
 if df.empty:
-    st.warning("⚠️ Nenhuma denúncia encontrada na planilha do Google.")
+    st.warning("⚠️ A planilha parece estar vazia ou o link está incorreto.")
+    st.info("Dica: No Google Sheets, clique em Compartilhar e mude para 'Qualquer pessoa com o link'.")
 else:
-    # --- 3. MÉTRICAS RÁPIDAS ---
+    # --- 3. MÉTRICAS ---
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total de Denúncias", len(df))
     with col2:
-        pendentes = len(df[df['Status'] == 'Pendente'])
-        st.metric("Pendentes", pendentes, delta_color="inverse")
+        # Verifica se a coluna Status existe antes de filtrar
+        if 'Status' in df.columns:
+            pendentes = len(df[df['Status'] == 'Pendente'])
+            st.metric("Pendentes", pendentes)
     with col3:
-        st.metric("Cidades Atendidas", "1 (João Pessoa)")
+        st.metric("Cidade", "João Pessoa")
 
     st.write("---")
 
-    # --- 4. GRÁFICOS E ANÁLISES ---
+    # --- 4. GRÁFICOS ---
     col_esq, col_dir = st.columns(2)
 
     with col_esq:
-        st.subheader("📦 Tipos de Resíduos Reportados")
-        fig_pizza = px.pie(df, names='Tipo', hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
-        st.plotly_chart(fig_pizza, use_container_width=True)
+        if 'Tipo' in df.columns:
+            st.subheader("📦 Tipos de Resíduos")
+            fig_pizza = px.pie(df, names='Tipo', hole=0.4)
+            st.plotly_chart(fig_pizza, use_container_width=True)
 
     with col_dir:
-        st.subheader("📈 Evolução das Denúncias")
-        # Pequeno ajuste para garantir que a data seja lida corretamente
-        df['Data_Limpa'] = pd.to_datetime(df['Data'], errors='coerce').dt.date
-        contagem_data = df.groupby('Data_Limpa').size().reset_index(name='Quantidade')
-        fig_linha = px.line(contagem_data, x='Data_Limpa', y='Quantidade', markers=True)
-        st.plotly_chart(fig_linha, use_container_width=True)
+        st.subheader("📋 Últimos Registos")
+        st.dataframe(df.iloc[::-1], use_container_width=True)
 
-    # --- 5. TABELA DE GERENCIAMENTO ---
-    st.write("---")
-    st.subheader("📋 Lista de Ocorrências (Google Sheets)")
-    
-    # Filtro rápido
-    filtro_tipo = st.multiselect("Filtrar por Tipo:", options=df['Tipo'].unique())
-    
-    df_exibir = df.copy()
-    if filtro_tipo:
-        df_exibir = df_exibir[df_exibir['Tipo'].isin(filtro_tipo)]
-    
-    st.dataframe(df_exibir.iloc[::-1], use_container_width=True)
-
-    # Botão de Atualização Manual
-    if st.button("🔄 Forçar Atualização dos Dados"):
+    if st.button("🔄 Atualizar Dados"):
         st.rerun()
-
-st.info("💡 Dica: Para alterar o status de 'Pendente' para 'Resolvido', você pode editar diretamente na sua planilha do Google Sheets. As mudanças aparecerão aqui ao atualizar.")
