@@ -4,7 +4,7 @@ import folium
 from streamlit_folium import st_folium
 from datetime import datetime
 from geopy.geocoders import Nominatim
-import requests  # Importante: Adicione 'requests' no seu requirements.txt
+import requests
 
 # --- 1. CONFIGURAÇÃO DA SIDEBAR ---
 with st.sidebar:
@@ -13,9 +13,9 @@ with st.sidebar:
     st.write("---")
     st.caption("v0.3 - Cloud Sync")
 
-# --- 2. CONFIGURAÇÃO DO GOOGLE SCRIPT ---
-# COLOQUE O SEU LINK QUE TERMINA EM /exec ENTRE AS ASPAS ABAIXO:
-URL_PROJETO_GOOGLE = "https://script.google.com/macros/s/AKfycbwXi0mTvqcgeQYfjsaJFaV1A0lZWNZDxmciPXWonMPARuE8FlUaPf4gxA5rypxVLQ97/exec"
+# --- 2. LINK DO GOOGLE APPS SCRIPT ---
+# ATENÇÃO: Substitua pelo seu link do Apps Script (o que termina em /exec)
+URL_PROJETO_GOOGLE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQqSGsMf952hUHotmeB_-yEMtGW0kIXZQPtrKM_k2rIZgMZyCrZl578omHUuuZbOIGCRmqVfACrBU6E/pub?gid=1439399047&single=true&output=csv"
 
 # --- 3. LOGICA DE LOCALIZAÇÃO ---
 geolocator = Nominatim(user_agent="lego_explorer_jp_v3")
@@ -43,12 +43,11 @@ with st.form("form_denuncia", clear_on_submit=True):
     
     anonimo = st.checkbox("Fazer denúncia anônima")
 
-    if st.form_submit_button("🚀 ENVIAR PARA A PLANILHA"):
+    if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
         if rua_input:
             autor = "Anônimo" if anonimo else st.session_state.get('usuario_atual', 'Explorador')
             endereco_final = f"{rua_input}, {numero_input}" if numero_input else rua_input
             
-            # Dados formatados para o Apps Script
             dados = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Endereço_Completo": endereco_final,
@@ -60,38 +59,30 @@ with st.form("form_denuncia", clear_on_submit=True):
             }
             
             try:
-                # Envio via POST para o Google
                 response = requests.post(URL_PROJETO_GOOGLE, json=dados)
-                
                 if response.status_code == 200:
-                    st.success("✅ Denúncia salva com sucesso na planilha!")
+                    st.success("✅ Denúncia salva na nuvem!")
                     st.balloons()
                     st.session_state.endereco_clique = ""
                     st.rerun()
                 else:
-                    st.error(f"Erro no servidor Google: {response.status_code}")
+                    st.error("Erro ao conectar com o Google.")
             except Exception as e:
                 st.error(f"Erro de conexão: {e}")
         else:
-            st.warning("⚠️ Por favor, selecione um local no mapa ou digite o endereço.")
+            st.warning("⚠️ Informe o local.")
 
-# --- 5. MAPA PARA SELEÇÃO ---
+# --- 5. MAPA ---
 st.write("---")
-st.subheader("📍 Selecione o Local no Mapa")
 m = folium.Map(location=[st.session_state.clique_lat, st.session_state.clique_lon], zoom_start=15)
 folium.Marker([st.session_state.clique_lat, st.session_state.clique_lon], icon=folium.Icon(color='red')).add_to(m)
-
 output = st_folium(m, width=700, height=350, key="mapa_sync")
 
 if output['last_clicked']:
     lt, ln = output['last_clicked']['lat'], output['last_clicked']['lng']
-    if lt != st.session_state.clique_lat:
-        st.session_state.clique_lat, st.session_state.clique_lon = lt, ln
-        try:
-            loc = geolocator.reverse(f"{lt}, {ln}")
-            if loc:
-                st.session_state.endereco_clique = loc.address.split(',')[0]
-        except: pass
-        st.rerun()
-
-st.info("💡 As denúncias enviadas são registradas em tempo real na planilha do projeto.")
+    st.session_state.clique_lat, st.session_state.clique_lon = lt, ln
+    try:
+        loc = geolocator.reverse(f"{lt}, {ln}")
+        st.session_state.endereco_clique = loc.address.split(',')[0]
+    except: pass
+    st.rerun()
