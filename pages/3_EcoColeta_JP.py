@@ -9,7 +9,7 @@ st.set_page_config(page_title="EcoColeta JP", page_icon="♻️")
 # --- 2. CONFIGURAÇÃO DO WHATSAPP ---
 # IMPORTANTE: Coloque seu número com 55 + DDD + Número (tudo junto)
 # Exemplo: "5583988887777"
-MEU_WHATSAPP = "5583900000000" 
+MEU_WHATSAPP = "5568992233125" 
 
 with st.sidebar:
     st.image("hamtaro.webp", width=150)
