@@ -2,30 +2,14 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Acompanhar - EcoColeta", page_icon="🕵️")
+st.title("🕵️ Acompanhar Minha Denúncia")
+prot_input = st.text_input("Digite seu Protocolo:").upper().strip()
 
-st.title("🕵️ Acompanhe sua Denúncia")
-st.markdown("Veja abaixo o status das solicitações em João Pessoa.")
-
-CAMINHO_CSV = 'denuncias.csv'
-
-if os.path.exists(CAMINHO_CSV):
-    df = pd.read_csv(CAMINHO_CSV)
-    
-    if not df.empty:
-        # Exibimos apenas informações públicas: Data, Rua, Tipo e Status
-        # Escondemos Latitude, Longitude e o Autor (se não for anônimo)
-        df_publico = df[['Data', 'Endereco', 'Tipo', 'Status']]
-        
-        # Filtro de busca para o usuário achar a rua dele
-        busca = st.text_input("🔍 Buscar por nome da rua:")
-        if busca:
-            df_publico = df_publico[df_publico['Endereco'].str.contains(busca, case=False)]
-
-        st.table(df_publico.iloc[::-1]) # Tabela simples e limpa
-    else:
-        st.info("Nenhuma denúncia registrada no sistema.")
-else:
-    st.info("O sistema está processando as primeiras coletas...")
-
-st.sidebar.caption("LEGO Explorers - Transparência e Privacidade")
+if st.button("Consultar") and os.path.exists('denuncias.csv'):
+    df = pd.read_csv('denuncias.csv')
+    res = df[df['Protocolo'] == prot_input]
+    if not res.empty:
+        st.success(f"Status: {res.iloc[0]['Status']}")
+        st.write(f"**Local:** {res.iloc[0]['Endereco']}")
+        st.write(f"**Tipo:** {res.iloc[0]['Tipo']}")
+    else: st.error("Protocolo não encontrado.")
