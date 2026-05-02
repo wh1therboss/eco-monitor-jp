@@ -20,12 +20,11 @@ with st.sidebar:
     st.image("hamtaro.webp", width=150)
     st.markdown("### LEGO EXPLORERS")
     st.write("---")
-    st.caption("Colabore com a limpeza de João Pessoa!")
+    st.caption("Sua identidade está protegida se desejar.")
 
 # --- LÓGICA DE LOCALIZAÇÃO ---
-geolocator = Nominatim(user_agent="lego_explorer_jp_v6")
+geolocator = Nominatim(user_agent="lego_explorer_jp_v7")
 
-# Inicia no centro de João Pessoa se não houver clique
 if 'lat' not in st.session_state:
     st.session_state.lat, st.session_state.lon = -7.1153, -34.8611
     st.session_state.end = ""
@@ -43,63 +42,48 @@ with st.form("form_denuncia", clear_on_submit=True):
         numero = st.text_input("Nº:")
         
     tipo_lixo = st.selectbox("O que foi descartado?", [
-        "📦 Plástico / Embalagens",
-        "📄 Papel / Papelão",
-        "🍾 Vidro",
-        "🥫 Metal / Latas",
-        "🍎 Restos de Alimentos (Orgânico)",
-        "🏗️ Entulho de Construção",
-        "🛋️ Móveis / Sofás / Colchões",
-        "💻 Lixo Eletrônico",
-        "🌿 Poda de Árvores / Galhos",
-        "🩺 Lixo Hospitalar / Máscaras",
-        "🛞 Pneus",
-        "🧪 Produtos Químicos / Óleo"
+        "📦 Plástico / Embalagens", "📄 Papel / Papelão", "🍾 Vidro",
+        "🥫 Metal / Latas", "🍎 Orgânico", "🏗️ Entulho", "🛋️ Móveis",
+        "💻 Eletrônico", "🌿 Poda / Galhos", "🩺 Hospitalar", "🛞 Pneus", "🧪 Químico"
     ])
+    
+    # NOVA OPÇÃO: ANONIMATO
+    anonimo = st.checkbox("🕵️ Desejo fazer uma denúncia anônima")
     
     if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
         if end_input:
+            # Define o autor baseado no checkbox
+            autor = "Anônimo" if anonimo else st.session_state.get('usuario_atual', 'Cidadão')
+            
             nova_denuncia = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
                 "Endereco": f"{end_input}, {numero}" if numero else end_input,
                 "Tipo": tipo_lixo,
+                "Autor": autor,
                 "Lat": st.session_state.lat,
                 "Lon": st.session_state.lon
             }
             salvar_no_csv(nova_denuncia)
-            st.success("✅ Registrado com sucesso!")
+            st.success("✅ Denúncia registrada! Obrigado por ajudar João Pessoa.")
             st.balloons()
             st.session_state.end = "" 
         else:
-            st.warning("⚠️ Clique no mapa para indicar o local exato.")
+            st.warning("⚠️ Clique no mapa para indicar o local.")
 
-# --- MAPA INTERATIVO ---
+# --- MAPA ---
 st.write("---")
-st.subheader("📍 Toque no mapa para marcar o local exato")
-
-# Cria o mapa centralizado no ponto atual
 m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=16)
+folium.Marker([st.session_state.lat, st.session_state.lon], icon=folium.Icon(color='red', icon='trash')).add_to(m)
 
-# Adiciona o marcador vermelho no local selecionado
-folium.Marker(
-    [st.session_state.lat, st.session_state.lon], 
-    icon=folium.Icon(color='red', icon='trash')
-).add_to(m)
-
-# Captura o clique e atualiza
-mapa_retorno = st_folium(m, width=700, height=400, key="mapa_coleta")
+mapa_retorno = st_folium(m, width=700, height=400, key="mapa_v7")
 
 if mapa_retorno['last_clicked']:
     nova_lat = mapa_retorno['last_clicked']['lat']
     nova_lon = mapa_retorno['last_clicked']['lng']
-    
-    # Só atualiza se o clique for em um lugar novo
     if nova_lat != st.session_state.lat:
-        st.session_state.lat = nova_lat
-        st.session_state.lon = nova_lon
+        st.session_state.lat, st.session_state.lon = nova_lat, nova_lon
         try:
             loc = geolocator.reverse(f"{nova_lat}, {nova_lon}")
             st.session_state.end = loc.address.split(',')[0]
-        except:
-            st.session_state.end = "Local marcado"
+        except: st.session_state.end = "Local marcado"
         st.rerun()
