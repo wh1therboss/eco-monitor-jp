@@ -6,7 +6,7 @@ from datetime import datetime
 from geopy.geocoders import Nominatim
 import os
 
-# --- CONFIGURAÇÃO ---
+# --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="EcoColeta JP", page_icon="♻️")
 
 CAMINHO_CSV = 'denuncias.csv'
@@ -16,44 +16,45 @@ def salvar_no_csv(nova_linha):
     df_aux = pd.DataFrame([nova_linha])
     df_aux.to_csv(CAMINHO_CSV, mode='a', index=False, header=header, encoding='utf-8')
 
+# --- 2. ESTADO DA SESSÃO (COORDENADAS) ---
+# Se não houver nada marcado, começa no centro de João Pessoa
+if 'lat' not in st.session_state:
+    st.session_state.lat = -7.1153
+    st.session_state.lon = -34.8611
+    st.session_state.end = ""
+
+geolocator = Nominatim(user_agent="eco_jp_final_fix")
+
 with st.sidebar:
     st.image("hamtaro.webp", width=150)
     st.markdown("### LEGO EXPLORERS")
     st.write("---")
-    st.caption("Sua identidade está protegida se desejar.")
-
-# --- LÓGICA DE LOCALIZAÇÃO ---
-geolocator = Nominatim(user_agent="lego_explorer_jp_v7")
-
-if 'lat' not in st.session_state:
-    st.session_state.lat, st.session_state.lon = -7.1153, -34.8611
-    st.session_state.end = ""
+    st.caption("Clique no mapa para ajustar o local.")
 
 st.title("♻️ EcoColeta JP")
 
-# --- FORMULÁRIO ---
+# --- 3. FORMULÁRIO ---
 with st.form("form_denuncia", clear_on_submit=True):
-    st.markdown("### 📝 Registrar Descarte Irregular")
+    st.markdown("### 📝 Detalhes do Descarte")
     
     col_rua, col_num = st.columns([3, 1])
     with col_rua:
-        end_input = st.text_input("Localização (clique no mapa):", value=st.session_state.end)
+        # Mostra o endereço capturado pelo clique
+        end_input = st.text_input("Endereço aproximado:", value=st.session_state.end)
     with col_num:
         numero = st.text_input("Nº:")
         
-    tipo_lixo = st.selectbox("O que foi descartado?", [
+    tipo_lixo = st.selectbox("O que você encontrou?", [
         "📦 Plástico / Embalagens", "📄 Papel / Papelão", "🍾 Vidro",
-        "🥫 Metal / Latas", "🍎 Orgânico", "🏗️ Entulho", "🛋️ Móveis",
-        "💻 Eletrônico", "🌿 Poda / Galhos", "🩺 Hospitalar", "🛞 Pneus", "🧪 Químico"
+        "🥫 Metal / Latas", "🍎 Orgânico", "🏗️ Entulho", "🛋️ Móveis / Sofás",
+        "💻 Eletrônico", "🌿 Poda / Galhos", "🩺 Hospitalar", "🛞 Pneus", "🧪 Químico / Óleo"
     ])
     
-    # NOVA OPÇÃO: ANONIMATO
-    anonimo = st.checkbox("🕵️ Desejo fazer uma denúncia anônima")
+    anonimo = st.checkbox("🕵️ Fazer denúncia anônima")
     
     if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
-        if end_input:
-            # Define o autor baseado no checkbox
-            autor = "Anônimo" if anonimo else st.session_state.get('usuario_atual', 'Cidadão')
+        if st.session_state.end != "":
+            autor = "Anônimo" if anonimo else "Cidadão"
             
             nova_denuncia = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -64,26 +65,48 @@ with st.form("form_denuncia", clear_on_submit=True):
                 "Lon": st.session_state.lon
             }
             salvar_no_csv(nova_denuncia)
-            st.success("✅ Denúncia registrada! Obrigado por ajudar João Pessoa.")
+            st.success("✅ Localizado e Registrado!")
             st.balloons()
-            st.session_state.end = "" 
+            # Reseta o endereço após o envio
+            st.session_state.end = ""
         else:
-            st.warning("⚠️ Clique no mapa para indicar o local.")
+            st.warning("⚠️ ERRO: Você precisa clicar no mapa para marcar o local primeiro!")
 
-# --- MAPA ---
+# --- 4. MAPA (O CORAÇÃO DO PROBLEMA) ---
 st.write("---")
-m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=16)
-folium.Marker([st.session_state.lat, st.session_state.lon], icon=folium.Icon(color='red', icon='trash')).add_to(m)
+st.subheader("📍 TOQUE NO MAPA NO LOCAL DO LIXO")
 
-mapa_retorno = st_folium(m, width=700, height=400, key="mapa_v7")
+# Criamos o objeto do mapa
+m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=17)
 
+# Adicionamos o marcador exatamente onde está a coordenada da sessão
+folium.Marker(
+    [st.session_state.lat, st.session_state.lon], 
+    popup="Local selecionado",
+    icon=folium.Icon(color='red', icon='trash')
+).add_to(m)
+
+# O st_folium agora tem um ID dinâmico baseado na coordenada para forçar o refresh
+mapa_retorno = st_folium(
+    m, 
+    width=700, 
+    height=450, 
+    key=f"mapa_{st.session_state.lat}" # Isso aqui é o que resolve o erro do local!
+)
+
+# Lógica de captura do clique
 if mapa_retorno['last_clicked']:
-    nova_lat = mapa_retorno['last_clicked']['lat']
-    nova_lon = mapa_retorno['last_clicked']['lng']
-    if nova_lat != st.session_state.lat:
-        st.session_state.lat, st.session_state.lon = nova_lat, nova_lon
+    clique_lat = mapa_retorno['last_clicked']['lat']
+    clique_lon = mapa_retorno['last_clicked']['lng']
+    
+    # Se o clique for novo, atualiza a sessão e recarrega
+    if clique_lat != st.session_state.lat:
+        st.session_state.lat = clique_lat
+        st.session_state.lon = clique_lon
         try:
-            loc = geolocator.reverse(f"{nova_lat}, {nova_lon}")
+            # Busca o nome da rua pelo GPS
+            loc = geolocator.reverse(f"{clique_lat}, {clique_lon}")
             st.session_state.end = loc.address.split(',')[0]
-        except: st.session_state.end = "Local marcado"
+        except:
+            st.session_state.end = "Local marcado no mapa"
         st.rerun()
