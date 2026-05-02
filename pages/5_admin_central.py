@@ -4,69 +4,82 @@ import os
 import folium
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="Painel Admin - EcoColeta", layout="wide")
-
+st.set_page_config(page_title="Admin Central - EcoMonitor", layout="wide")
 CAMINHO_CSV = 'denuncias.csv'
 
-# --- SISTEMA DE LOGIN ---
+# --- LOGIN (Senha: 09122307) ---
 if 'admin_logado' not in st.session_state:
-    st.title("🔑 Acesso Restrito - Admin")
-    st.markdown("Insira a senha para visualizar os dados coletados.")
-    
+    st.title("🔑 Painel Administrativo")
     senha = st.text_input("Senha mestra:", type="password")
-    
     if st.button("Entrar"):
         if senha == "09122307":
             st.session_state.admin_logado = True
             st.rerun()
         else:
-            st.error("Senha incorreta! Tente novamente.")
+            st.error("Senha incorreta!")
     st.stop()
 
-# --- CONTEÚDO ADMIN (SÓ APARECE SE LOGADO) ---
-st.title("📊 Administração Central - EcoColeta JP")
+# --- CARREGAMENTO DE DADOS ---
+st.title("📊 Gestão Central LEGO Explorers")
 
 if os.path.exists(CAMINHO_CSV):
-    try:
-        df = pd.read_csv(CAMINHO_CSV)
-        
-        if df.empty:
-            st.info("O arquivo CSV existe, mas ainda não há denúncias registradas.")
-        else:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total de Ocorrências", len(df))
-            with col2:
-                if st.button("🗑️ Limpar Tudo (Apagar CSV)"):
-                    os.remove(CAMINHO_CSV)
-                    st.success("Arquivo apagado. Recarregue a página.")
-                    st.rerun()
+    df = pd.read_csv(CAMINHO_CSV)
+    
+    if not df.empty:
+        # Criando as Abas
+        aba_lixo, aba_iluminacao = st.tabs(["♻️ Descarte de Lixo", "💡 Iluminação Pública"])
 
-            st.write("---")
+        # --- ABA 1: LIXO ---
+        with aba_lixo:
+            # Filtra apenas o que NÃO é iluminação (ajuste os nomes conforme sua lista)
+            df_lixo = df[~df['Tipo'].str.contains("Iluminação|Poste|Luz", case=False, na=False)]
             
-            # MAPA ADMIN (VÊ TODOS OS PONTOS)
-            st.subheader("🗺️ Mapa Geral de Focos de Lixo")
-            m_admin = folium.Map(location=[-7.1153, -34.8611], zoom_start=13)
+            st.metric("Focos de Lixo Encontrados", len(df_lixo))
             
-            for i, row in df.iterrows():
+            m_lixo = folium.Map(location=[-7.1153, -34.8611], zoom_start=13)
+            for _, row in df_lixo.iterrows():
                 folium.Marker(
                     [row['Lat'], row['Lon']],
-                    popup=f"<b>Tipo:</b> {row['Tipo']}<br><b>End:</b> {row['Endereco']}<br><b>Data:</b> {row['Data']}",
-                    icon=folium.Icon(color='blue', icon='info-sign')
-                ).add_to(m_admin)
+                    popup=f"<b>Tipo:</b> {row['Tipo']}<br><b>Rua:</b> {row['Endereco']}",
+                    icon=folium.Icon(color='green', icon='trash', prefix='fa')
+                ).add_to(m_lixo)
             
-            st_folium(m_admin, width=1100, height=500)
+            st_folium(m_lixo, width=1100, height=450, key="mapa_lixo")
+            st.dataframe(df_lixo.iloc[::-1], use_container_width=True)
 
-            st.write("---")
-            st.subheader("📋 Lista de Denúncias")
-            st.dataframe(df.iloc[::-1], use_container_width=True) # Mostra as mais recentes primeiro
+        # --- ABA 2: ILUMINAÇÃO ---
+        with aba_iluminacao:
+            # Filtra apenas o que contém palavras de iluminação
+            df_luz = df[df['Tipo'].str.contains("Iluminação|Poste|Luz", case=False, na=False)]
             
-    except Exception as e:
-        st.error(f"Erro ao ler o arquivo: {e}")
+            st.metric("Problemas de Iluminação", len(df_luz))
+            
+            if not df_luz.empty:
+                m_luz = folium.Map(location=[-7.1153, -34.8611], zoom_start=13)
+                for _, row in df_luz.iterrows():
+                    folium.Marker(
+                        [row['Lat'], row['Lon']],
+                        popup=f"<b>Problema:</b> {row['Tipo']}<br><b>Rua:</b> {row['Endereco']}",
+                        icon=folium.Icon(color='orange', icon='lightbulb', prefix='fa')
+                    ).add_to(m_luz)
+                
+                st_folium(m_luz, width=1100, height=450, key="mapa_luz")
+                st.dataframe(df_luz.iloc[::-1], use_container_width=True)
+            else:
+                st.info("Nenhuma denúncia de iluminação registrada.")
+
+        # Botão Geral para Limpar
+        st.write("---")
+        if st.button("⚠️ APAGAR TODO O BANCO DE DADOS (CSV)"):
+            os.remove(CAMINHO_CSV)
+            st.success("Dados apagados com sucesso!")
+            st.rerun()
+
+    else:
+        st.info("O banco de dados está vazio.")
 else:
-    st.warning("Ainda não existem denúncias registradas no sistema.")
+    st.error("Arquivo CSV não encontrado.")
 
-# Botão para deslogar
-if st.sidebar.button("Sair do Painel"):
+if st.sidebar.button("Sair"):
     del st.session_state.admin_logado
     st.rerun()
