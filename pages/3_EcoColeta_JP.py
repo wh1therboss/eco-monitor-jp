@@ -8,9 +8,8 @@ import os
 
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="EcoColeta JP", page_icon="♻️")
-
 CAMINHO_CSV = 'denuncias.csv'
-geolocator = Nominatim(user_agent="eco_jp_final_v10")
+geolocator = Nominatim(user_agent="eco_jp_final_v12")
 
 def salvar_no_csv(nova_linha):
     header = not os.path.exists(CAMINHO_CSV)
@@ -21,80 +20,83 @@ def salvar_no_csv(nova_linha):
 if 'lat' not in st.session_state:
     st.session_state.lat = -7.1153
     st.session_state.lon = -34.8611
-if 'endereco_digitado' not in st.session_state:
-    st.session_state.endereco_digitado = ""
+if 'endereco' not in st.session_state:
+    st.session_state.endereco = ""
 
 st.title("♻️ EcoColeta JP")
 
-# --- 3. CAMPO DE DIGITAÇÃO (BUSCA) ---
+# --- 3. ÁREA DE BUSCA ---
 st.subheader("Onde está o problema?")
-texto_busca = st.text_input("Digite a rua e número (ou clique no mapa):", value=st.session_state.endereco_digitado)
+col_busca, col_btn = st.columns([4, 1])
 
-# BOTÃO PARA ATUALIZAR O MAPA BASEADO NO QUE FOI DIGITADO
-if st.button("🔍 Localizar no Mapa"):
-    if texto_busca:
-        try:
-            # Transforma TEXTO em COORDENADA
-            location = geolocator.geocode(f"{texto_busca}, João Pessoa, PB")
-            if location:
-                st.session_state.lat = location.latitude
-                st.session_state.lon = location.longitude
-                st.session_state.endereco_digitado = texto_busca
-                st.success(f"Localizado: {location.address}")
-                st.rerun()
-            else:
-                st.error("Não achei esse endereço. Tente ser mais específico (ex: Rua tal, bairro).")
-        except:
-            st.error("Erro na busca. Tente clicar no mapa.")
+with col_busca:
+    # Campo de texto que aceita digitação
+    endereco_digitado = st.text_input("Digite a rua e número:", value=st.session_state.endereco)
 
-# --- 4. O MAPA ---
-m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=17)
+with col_btn:
+    st.write(" ") # Alinhamento
+    buscar = st.button("🔍 Localizar")
+
+if buscar and endereco_digitado:
+    try:
+        location = geolocator.geocode(f"{endereco_digitado}, João Pessoa, PB")
+        if location:
+            st.session_state.lat = location.latitude
+            st.session_state.lon = location.longitude
+            st.session_state.endereco = endereco_digitado
+            st.rerun()
+        else:
+            st.error("Rua não encontrada.")
+    except:
+        st.error("Serviço de busca ocupado.")
+
+# --- 4. MAPA INTERATIVO ---
+m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=18)
 folium.Marker([st.session_state.lat, st.session_state.lon], 
               icon=folium.Icon(color='red', icon='trash', prefix='fa')).add_to(m)
 
-# Captura clique manual no mapa também
-mapa_dados = st_folium(m, width=700, height=400, key="mapa_v10")
+# Key dinâmica para o mapa se mover quando as coordenadas mudarem
+mapa_dados = st_folium(m, width=700, height=400, key=f"mapa_{st.session_state.lat}_{st.session_state.lon}")
 
+# Se clicar no mapa, atualiza o texto e a posição
 if mapa_dados['last_clicked']:
-    n_lat = mapa_dados['last_clicked']['lat']
-    n_lon = mapa_dados['last_clicked']['lng']
-    if n_lat != st.session_state.lat:
-        st.session_state.lat = n_lat
-        st.session_state.lon = n_lon
-        try:
-            # Transforma COORDENADA em TEXTO
-            location = geolocator.reverse(f"{n_lat}, {n_lon}")
-            st.session_state.endereco_digitado = location.address.split(',')[0]
-        except:
-            st.session_state.endereco_digitado = "Local marcado"
-        st.rerun()
+    st.session_state.lat = mapa_dados['last_clicked']['lat']
+    st.session_state.lon = mapa_dados['last_clicked']['lng']
+    try:
+        rev_loc = geolocator.reverse(f"{st.session_state.lat}, {st.session_state.lon}")
+        st.session_state.endereco = rev_loc.address.split(',')[0]
+    except:
+        st.session_state.endereco = "Local marcado no mapa"
+    st.rerun()
 
 # --- 5. FORMULÁRIO DE ENVIO ---
 st.write("---")
-with st.form("form_final"):
-    tipo_lixo = st.selectbox("O que você encontrou?", [
-        "📦 Plástico", "📄 Papel", "🍾 Vidro", "🥫 Metal", 
-        "🍎 Orgânico", "🏗️ Entulho", "🛋️ Móveis", "💻 Eletrônico", 
-        "🌿 Poda", "🩺 Hospitalar", "🛞 Pneus", "🧪 Químico"
+with st.form("enviar_denuncia", clear_on_submit=True):
+    st.markdown("### Detalhes da Ocorrência")
+    
+    tipo_lixo = st.selectbox("O que é?", [
+        "📦 Plástico", "📄 Papel", "🍾 Vidro", "🥫 Metal", "🍎 Orgânico", 
+        "🏗️ Entulho", "🛋️ Móveis", "💻 Eletrônico", "🌿 Poda", "🩺 Hospitalar", "🛞 Pneus"
     ])
     
     anonimo = st.checkbox("🕵️ Denúncia Anônima")
     
-    if st.form_submit_button("🚀 ENVIAR DENÚNCIA"):
-        if st.session_state.endereco_digitado:
-            autor = "Anônimo" if anonimo else "Cidadão"
+    if st.form_submit_button("🚀 GRAVAR NO CSV"):
+        if st.session_state.endereco:
             nova_denuncia = {
                 "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "Endereco": st.session_state.endereco_digitado,
+                "Endereco": st.session_state.endereco,
                 "Tipo": tipo_lixo,
-                "Autor": autor,
+                "Autor": "Anônimo" if anonimo else "Cidadão",
                 "Lat": st.session_state.lat,
                 "Lon": st.session_state.lon
             }
             salvar_no_csv(nova_denuncia)
-            st.success("✅ Denúncia salva no local correto!")
+            st.success("✅ Denúncia salva com sucesso!")
             st.balloons()
+            st.session_state.endereco = "" 
         else:
-            st.error("⚠️ Digite um endereço ou clique no mapa primeiro!")
+            st.error("⚠️ Localização vazia!")
 
 st.sidebar.image("hamtaro.webp", width=150)
+st.sidebar.markdown("### LEGO EXPLORERS")
