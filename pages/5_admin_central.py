@@ -53,16 +53,36 @@ if os.path.exists(CAMINHO_CSV):
         st_folium(m_admin, width="100%", height=500)
 
     with aba_gestao:
-        escolha = st.selectbox("Protocolo:", df['Protocolo'].unique())
-        novo_st = st.radio("Status:", ["Pendente 🟡", "Em Manutenção 🛠️", "Resolvido ✅"])
-        if st.button("Salvar"):
+        st.subheader("🛠️ Gerenciar Ocorrência")
+        
+        # Seleção do Protocolo
+        prots_disponiveis = df['Protocolo'].unique()
+        escolha = st.selectbox("Selecione o Protocolo para analisar:", prots_disponiveis)
+        
+        # Filtrar os dados da denúncia selecionada
+        detalhes = df[df['Protocolo'] == escolha].iloc[0]
+        
+        # --- AQUI MOSTRA O QUE A PESSOA ESCREVEU ---
+        st.markdown("### 📝 Relato do Usuário")
+        
+        col_info1, col_info2 = st.columns(2)
+        with col_info1:
+            st.info(f"**📍 Endereço:**\n{detalhes['Endereco']}")
+            st.info(f"**🔍 Ponto de Referência:**\n{detalhes['Referencia']}")
+        
+        with col_info2:
+            st.warning(f"**⚠️ Descrição do Problema:**\n{detalhes['Descricao']}")
+            st.write(f"**👤 Autor:** {detalhes['Autor']}")
+
+        st.write("---")
+        
+        # Parte de atualizar o status
+        novo_st = st.radio("Atualizar Status para:", ["Pendente 🟡", "Em Manutenção 🛠️", "Resolvido ✅"], horizontal=True)
+        
+        if st.button("Gravar Alteração de Status"):
             df.loc[df['Protocolo'] == escolha, 'Status'] = novo_st
             df.to_csv(CAMINHO_CSV, index=False)
-            st.success("Atualizado!")
+            st.success(f"O status do protocolo {escolha} foi atualizado!")
             st.rerun()
-    
-    if st.sidebar.button("🗑️ LIMPAR BANCO DE DADOS"):
-        os.remove(CAMINHO_CSV)
-        st.rerun()
 else:
     st.info("Sem dados.")
