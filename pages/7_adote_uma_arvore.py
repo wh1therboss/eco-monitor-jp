@@ -4,41 +4,13 @@ import os
 from datetime import datetime
 import time
 
-st.set_page_config(page_title="Adote uma Árvore | Biomas JP", layout="wide", page_icon="🌳")
+# ... (Mantenha suas funções de carregar_dados e salvar_dados lá em cima)
 
-# Criar pasta para fotos se não existir
-if not os.path.exists("fotos_arvores"):
-    os.makedirs("fotos_arvores")
-
-CAMINHO_ARVORES = 'arvores_adotadas.csv'
-
-# Lista oficial de mudas (Emojis)
-especies = {
-    "Ipê-Amarelo": "🌼", "Pau-Brasil": "🌳", "Baobá": "🪵", 
-    "Cajueiro": "🍎", "Mangue": "🦀", "Oiti": "🍃", 
-    "Aroeira": "🌿", "Pau-Ferro": "🏗️", "Pau-d'arco": "🌸", "Pitombeira": "🍒"
-}
-
-def carregar_dados():
-    if os.path.exists(CAMINHO_ARVORES):
-        df = pd.read_csv(CAMINHO_ARVORES)
-        if "Ultima_Foto" not in df.columns:
-            df["Ultima_Foto"] = "Sem registro"
-        return df
-    return pd.DataFrame(columns=["Dono", "Nome_Arvore", "Especie", "Local", "Motivo", "XP", "Status_Saude", "Ultima_Foto"])
-
-def salvar_dados(df):
-    df.to_csv(CAMINHO_ARVORES, index=False)
-
-st.title("🌳 Sistema de Tutoria Ambiental")
-
-tab1, tab2 = st.tabs(["📜 Adotar e Assinar", "🏡 Meu Jardim"])
-
-# --- TABELA 1: ESCOLHA E CONTRATO ---
+# --- ABA 1: ADOTAR E ASSINAR (VERSÃO COM CONTRATO PREMIUM) ---
 with tab1:
     st.subheader("1. Selecione sua Muda Nativa")
+    # Grid de seleção (mantenha o código das colunas que já temos)
     cols = st.columns(5)
-    
     for i, (nome, emoji) in enumerate(especies.items()):
         with cols[i % 5]:
             st.markdown(f"<h1 style='text-align: center;'>{emoji}</h1>", unsafe_allow_html=True)
@@ -48,29 +20,48 @@ with tab1:
 
     if 'esp_sel' in st.session_state:
         st.divider()
-        st.subheader("2. Formalização do Contrato")
+        st.subheader("📝 Termo de Compromisso e Tutoria")
         
         with st.form("form_contrato"):
             c1, c2 = st.columns(2)
             with c1:
-                tutor = st.text_input("Seu Nome Completo:")
-                arvore_nome = st.text_input("Nome da Árvore:")
+                tutor = st.text_input("Nome Completo do Tutor:")
+                arvore_nome = st.text_input("Nome de Batismo da Árvore:")
             with c2:
-                local = st.text_input("Localização (Bairro/Rua):")
-                motivo = st.text_area("Por que quer adotar?")
+                local = st.text_input("Endereço/Localização do Plantio:")
+                motivo = st.text_area("Justificativa da Adoção (Sua motivação):")
 
+            # --- O TERMO MELHORADO ---
             st.markdown(f"""
-            <div style="background-color: #f1f5f9; padding: 15px; border-radius: 10px; color: #000; border: 2px solid #2f855a;">
-                <h4 style="text-align: center;">CONTRATO DE TUTORIA № {datetime.now().strftime('%H%M%S')}</h4>
-                <p>Eu, <b>{tutor if tutor else "___"}</b>, assumo a responsabilidade pela muda de <b>{st.session_state.esp_sel}</b>.</p>
-                <p>Comprometo-me a regar, monitorar e registrar sua evolução no sistema.</p>
+            <div style="background-color: #ffffff; padding: 25px; border-radius: 5px; color: #1e293b; border-left: 10px solid #2f855a; font-family: serif; line-height: 1.6; box-shadow: 2px 2px 10px rgba(0,0,0,0.1);">
+                <h2 style="text-align: center; color: #2f855a; margin-top: 0;">ESTADO DA PARAÍBA</h2>
+                <h3 style="text-align: center; margin-bottom: 20px;">Termo de Responsabilidade Ambiental № {datetime.now().strftime('%y%m%d')}-JP</h3>
+                
+                <p>Pelo presente instrumento, eu, <b>{tutor if tutor else "____________________"}</b>, doravante denominado(a) <b>TUTOR(A)</b>, 
+                assumo perante o projeto <i>LEGO Explorers</i> e a comunidade de João Pessoa o compromisso solene de zelar pela vida e 
+                pleno desenvolvimento da árvore batizada como <b>{arvore_nome if arvore_nome else "____________________"}</b>, 
+                da espécie <b>{st.session_state.esp_sel}</b>.</p>
+                
+                <p><b>DAS OBRIGAÇÕES:</b><br>
+                1. Promover o fornecimento hídrico adequado e nutrição do solo conforme as necessidades da espécie;<br>
+                2. Realizar o monitoramento diário e registro fotográfico para fins de acompanhamento científico e XP;<br>
+                3. Proteger a muda contra vandalismo, pragas e resíduos sólidos nas proximidades de suas raízes.</p>
+                
+                <p><b>DA MISSÃO:</b><br>
+                Compreendo que esta árvore é parte vital da recuperação do bioma local, contribuindo para o microclima e a fauna urbana.</p>
+                
+                <p style="text-align: center; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 10px;">
+                    Assinado eletronicamente em {datetime.now().strftime('%d/%m/%Y')}
+                </p>
             </div>
             """, unsafe_allow_html=True)
             
-            aceite = st.checkbox("Aceito os termos de responsabilidade ambiental.")
+            st.write("")
+            aceite = st.checkbox("Eu, na qualidade de tutor, aceito integralmente os termos acima e assumo o dever de cuidar desta vida.")
             
-            if st.form_submit_button("ASSINAR E ADOTAR"):
+            if st.form_submit_button("ASSINAR E REGISTRAR TUTORIA ✒️"):
                 if tutor and arvore_nome and local and aceite:
+                    # (Mesma lógica de salvar que você já tem)
                     df = carregar_dados()
                     nova = {
                         "Dono": tutor, "Nome_Arvore": arvore_nome, "Especie": st.session_state.esp_sel,
@@ -79,67 +70,9 @@ with tab1:
                     df = pd.concat([df, pd.DataFrame([nova])], ignore_index=True)
                     salvar_dados(df)
                     st.balloons()
-                    st.success("Tudo pronto! Sua árvore te espera no Jardim.")
+                    st.success(f"Oficializado! O tutor de {arvore_nome} agora é {tutor}.")
                     del st.session_state.esp_sel
                     time.sleep(2)
                     st.rerun()
                 else:
-                    st.error("Preencha tudo e assine o contrato!")
-
-# --- TABELA 2: MEU JARDIM E CÂMERA ---
-with tab2:
-    df = carregar_dados()
-    if df.empty:
-        st.info("Escolha uma muda na aba ao lado primeiro!")
-    else:
-        sel = st.selectbox("Escolha sua árvore:", df['Nome_Arvore'].tolist())
-        idx = df[df['Nome_Arvore'] == sel].index[0]
-        d = df.loc[idx]
-        
-        col_cam, col_status = st.columns(2)
-        
-        with col_cam:
-            st.subheader("📸 Diário de Fotos")
-            if "ativar_camera" not in st.session_state: st.session_state.ativar_camera = False
-
-            if not st.session_state.ativar_camera:
-                if st.button("📷 Abrir Câmera para Registro"):
-                    st.session_state.ativar_camera = True
-                    st.rerun()
-            else:
-                f_captura = st.camera_input("Capture o crescimento!")
-                if f_captura:
-                    path = f"fotos_arvores/{sel}_{datetime.now().strftime('%Y%m%d')}.png"
-                    with open(path, "wb") as f: f.write(f_captura.getbuffer())
-                    df.loc[idx, 'Ultima_Foto'] = path
-                    df.loc[idx, 'XP'] += 50
-                    salvar_dados(df)
-                    st.session_state.ativar_camera = False
-                    st.success("Foto salva! +50 XP")
-                    time.sleep(1); st.rerun()
-                if st.button("❌ Cancelar"):
-                    st.session_state.ativar_camera = False
-                    st.rerun()
-
-        with col_status:
-            st.subheader("📊 Status")
-            f_path = str(d['Ultima_Foto'])
-            if f_path != "Sem registro" and os.path.exists(f_path):
-                st.image(f_path, caption=f"Foto de hoje: {sel}", use_container_width=True)
-            else:
-                st.warning("Nenhuma foto enviada hoje.")
-            
-            st.metric("XP Verde", d['XP'])
-            st.write(f"🏥 Saude: {d['Status_Saude']} | 📍 Local: {d['Local']}")
-            
-            # Ações rápidas
-            c_r, c_a = st.columns(2)
-            if c_r.button("💧 Regar"):
-                df.loc[idx, 'XP'] += 10; salvar_dados(df); st.rerun()
-            if c_a.button("💩 Adubar"):
-                df.loc[idx, 'XP'] += 20; salvar_dados(df); st.rerun()
-
-st.sidebar.image("hamtaro.webp", width=100)
-if st.sidebar.button("🗑️ Resetar Jardim (Limpa Erros)"):
-    if os.path.exists(CAMINHO_ARVORES): os.remove(CAMINHO_ARVORES)
-    st.rerun()
+                    st.error("⚠️ Para oficializar, preencha todos os campos e aceite o termo.")
