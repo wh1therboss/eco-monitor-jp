@@ -2,52 +2,74 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Status da Denúncia | LEGO Explorers", page_icon="🕵️")
+st.set_page_config(page_title="Consultar Protocolo | LEGO Explorers", layout="wide", page_icon="🕵️")
 
+# --- CABEÇALHO ---
 st.title("🕵️ Acompanhar Minha Denúncia")
-st.markdown("Insira o código do seu protocolo para verificar o andamento da solicitação.")
+st.markdown("---")
 
-prot_input = st.text_input("Digite seu Protocolo:").upper().strip()
+# Entrada do usuário: Deixa em maiúsculo e remove espaços extras
+prot_input = st.text_input("Digite o código do seu Protocolo:", placeholder="Ex: LUM-A1B2C").upper().strip()
 
-if st.button("Consultar"):
-    encontrado = False
-    
-    # --- 1. BUSCA NAS DENÚNCIAS DE RESÍDUOS (LIXO) ---
-    if os.path.exists('denuncias.csv'):
-        df_lixo = pd.read_csv('denuncias.csv')
-        # Verifica se a coluna Protocolo existe (evita erro se o CSV for antigo)
-        if 'Protocolo' in df_lixo.columns:
-            res_lixo = df_lixo[df_lixo['Protocolo'] == prot_input]
-            if not res_lixo.empty:
-                r = res_lixo.iloc[0]
-                st.subheader("🗑️ Detalhes da Denúncia de Resíduos")
-                st.success(f"**Status Atual:** {r['Status']}")
-                st.write(f"📍 **Local:** {r['Endereco']}")
-                st.write(f"📝 **Tipo:** {r.get('Tipo', 'Lixo Urbano')}")
-                st.write(f"📅 **Data do Registro:** {r['Data']}")
-                encontrado = True
+if st.button("Consultar Status"):
+    if not prot_input:
+        st.warning("⚠️ Por favor, insira um número de protocolo.")
+    else:
+        encontrado = False
+        
+        # 1. BUSCA NAS DENÚNCIAS DE LIXO (denuncias.csv)
+        if os.path.exists('denuncias.csv'):
+            df_lixo = pd.read_csv('denuncias.csv')
+            if 'Protocolo' in df_lixo.columns:
+                res_lixo = df_lixo[df_lixo['Protocolo'] == prot_input]
+                if not res_lixo.empty:
+                    r = res_lixo.iloc[0]
+                    st.subheader("🗑️ Detalhes da Denúncia de Resíduos")
+                    
+                    # Estilo de Card para o Status
+                    status_lixo = r['Status']
+                    cor = "green" if "Resolvido" in status_lixo else "orange"
+                    st.markdown(f"### Status: <span style='color:{cor};'>{status_lixo}</span>", unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**📍 Local:** {r.get('Endereco', 'Não informado')}")
+                        st.write(f"**📝 Tipo:** {r.get('Tipo', 'Lixo Urbano')}")
+                    with col2:
+                        st.write(f"**📅 Data:** {r.get('Data', '---')}")
+                        st.write(f"**👤 Autor:** {r.get('Autor', 'Anônimo')}")
+                    encontrado = True
 
-    # --- 2. BUSCA NO ILUMINA JP (LUZ) ---
-    if not encontrado and os.path.exists('alertas_iluminacao.csv'):
-        df_luz = pd.read_csv('alertas_iluminacao.csv')
-        # Se você ainda não criou a coluna Protocolo no IluminaJP, 
-        # o Admin pode usar o índice ou o nome do autor como busca temporária
-        if 'Protocolo' in df_luz.columns:
-            res_luz = df_luz[df_luz['Protocolo'] == prot_input]
-            if not res_luz.empty:
-                r = res_luz.iloc[0]
-                st.subheader("💡 Detalhes do Alerta IluminaJP")
-                st.success(f"**Status Atual:** {r['Status']}")
-                st.write(f"📍 **Local:** {r['Endereço_Completo']}")
-                st.write(f"🔦 **Problema:** {r['Problema']}")
-                st.write(f"📅 **Data do Registro:** {r['Data']}")
-                encontrado = True
+        # 2. BUSCA NO ILUMINA JP (alertas_iluminacao.csv)
+        if not encontrado and os.path.exists('alertas_iluminacao.csv'):
+            df_luz = pd.read_csv('alertas_iluminacao.csv')
+            if 'Protocolo' in df_luz.columns:
+                res_luz = df_luz[df_luz['Protocolo'] == prot_input]
+                if not res_luz.empty:
+                    r = res_luz.iloc[0]
+                    st.subheader("💡 Detalhes do Alerta IluminaJP")
+                    
+                    status_luz = r['Status']
+                    cor = "green" if "Resolvido" in status_luz else "orange"
+                    st.markdown(f"### Status: <span style='color:{cor};'>{status_luz}</span>", unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        # Tenta pegar 'Endereço' ou 'Endereço_Completo'
+                        loc = r.get('Endereço', r.get('Endereço_Completo', 'Local não informado'))
+                        st.write(f"**📍 Local:** {loc}")
+                        st.write(f"**🔦 Problema:** {r.get('Problema', 'Não especificado')}")
+                    with col2:
+                        st.write(f"**📅 Data:** {r.get('Data', '---')}")
+                        st.write(f"**👤 Autor:** {r.get('Autor', 'Anônimo')}")
+                    encontrado = True
 
-    if not encontrado:
-        st.error("❌ Protocolo não encontrado. Verifique se o código está correto ou se a denúncia foi enviada.")
+        # 3. SE NÃO ACHAR EM NENHUM
+        if not encontrado:
+            st.error(f"❌ Protocolo **{prot_input}** não encontrado.")
+            st.info("Verifique se digitou corretamente ou se a denúncia foi realizada com sucesso.")
 
-# --- DICA PARA O USUÁRIO ---
-st.info("""
-**Não tem o protocolo?** Os protocolos são gerados no momento do envio da denúncia. 
-Caso tenha perdido, você também pode conferir o mapa geral na página de denúncias.
-""")
+# --- BARRA LATERAL ---
+st.sidebar.image("hamtaro.webp", width=100)
+st.sidebar.write("---")
+st.sidebar.caption("LEGO Explorers - João Pessoa")
