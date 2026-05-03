@@ -21,7 +21,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 CAMINHO_CSV = 'denuncias.csv'
-geolocator = Nominatim(user_agent="eco_jp_v17_final", timeout=10)
+geolocator = Nominatim(user_agent="eco_jp_v18_final", timeout=10)
 
 def gerar_protocolo():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -29,7 +29,8 @@ def gerar_protocolo():
 def salvar_no_csv(nova_linha):
     header = not os.path.exists(CAMINHO_CSV)
     df_aux = pd.DataFrame([nova_linha])
-    colunas = ["Protocolo", "Data", "Endereco", "Tipo", "Descricao", "Autor", "Status", "Lat", "Lon"]
+    # Adicionadas as colunas separadas para Referencia e Descricao
+    colunas = ["Protocolo", "Data", "Endereco", "Tipo", "Referencia", "Descricao", "Autor", "Status", "Lat", "Lon"]
     df_aux = df_aux.reindex(columns=colunas)
     df_aux.to_csv(CAMINHO_CSV, mode='a', index=False, header=header, encoding='utf-8')
 
@@ -66,7 +67,7 @@ with col1:
     with st.form("form_denuncia"):
         st.subheader("📝 Detalhes da Denúncia")
         
-        tipo_lixo = st.selectbox("Selecione o tipo de problema:", [
+        tipo_lixo = st.selectbox("Tipo de problema:", [
             "📦 Descarte Irregular de Lixo", 
             "🏗️ Entulho de Obras", 
             "🛋️ Móveis Abandonados", 
@@ -76,20 +77,22 @@ with col1:
             "❓ Outros"
         ])
         
-        # CAMPO OBRIGATÓRIO DE DESCRIÇÃO
-        descricao = st.text_area("Descreva o problema (Obrigatório):", 
-                                 placeholder="Dê detalhes sobre o que está acontecendo ou ponto de referência...")
+        # --- CAMPOS SEPARADOS ---
+        ponto_ref = st.text_input("Ponto de Referência (Opcional):", 
+                                   placeholder="Ex: Em frente à farmácia, ao lado da praça...")
+        
+        descricao = st.text_area("Descrição do Problema (Obrigatório):", 
+                                 placeholder="Descreva o que está acontecendo (ex: lixo acumulado há 3 dias, mau cheiro)...")
         
         anonimo = st.checkbox("🕵️ Fazer denúncia anônima")
         
         submit = st.form_submit_button("🚀 ENVIAR DENÚNCIA")
         
         if submit:
-            # Validação: Se a descrição estiver vazia ou o endereço não existir
             if not descricao.strip():
-                st.error("⚠️ Você precisa descrever o problema antes de enviar!")
+                st.error("⚠️ A descrição do problema é obrigatória!")
             elif not st.session_state.endereco:
-                st.error("⚠️ Selecione o local no mapa ou busque o endereço primeiro!")
+                st.error("⚠️ Marque o local no mapa primeiro!")
             else:
                 prot = gerar_protocolo()
                 salvar_no_csv({
@@ -97,7 +100,8 @@ with col1:
                     "Data": datetime.now().strftime("%d/%m/%Y %H:%M"),
                     "Endereco": st.session_state.endereco, 
                     "Tipo": tipo_lixo,
-                    "Descricao": descricao,
+                    "Referencia": ponto_ref, # Novo campo
+                    "Descricao": descricao,   # Novo campo
                     "Autor": "Anônimo" if anonimo else "Cidadão", 
                     "Status": "Pendente 🟡",
                     "Lat": st.session_state.lat, 
@@ -105,7 +109,7 @@ with col1:
                 })
                 st.success(f"✅ REGISTRADO! Protocolo: **{prot}**")
                 st.balloons()
-                st.session_state.endereco = "" # Limpa para o próximo
+                st.session_state.endereco = "" 
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
