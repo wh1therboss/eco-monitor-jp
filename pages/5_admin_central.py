@@ -6,7 +6,7 @@ from streamlit_folium import st_folium
 
 st.set_page_config(page_title="Painel Admin", layout="wide")
 
-# CSS CORRIGIDO PARA MÉTRICAS VISÍVEIS
+# CSS PARA MÉTRICAS VISÍVEIS
 st.markdown("""
     <style>
     [data-testid="stMetric"] {
@@ -24,6 +24,7 @@ st.markdown("""
 
 CAMINHO_CSV = 'denuncias.csv'
 
+# --- LOGIN ---
 if 'admin_logado' not in st.session_state:
     st.title("🔐 Admin")
     if st.text_input("Senha:", type="password") == "09122307":
@@ -48,41 +49,50 @@ if os.path.exists(CAMINHO_CSV):
     with aba_mapa:
         m_admin = folium.Map(location=[-7.1153, -34.8611], zoom_start=13)
         for _, r in df.iterrows():
-            cor = "red" if "Pendente" in r['Status'] else "green"
+            cor = "red" if "Pendente" in r['Status'] else "orange" if "Manutenção" in r['Status'] else "green"
             folium.Marker([r['Lat'], r['Lon']], popup=f"{r['Protocolo']}", icon=folium.Icon(color=cor)).add_to(m_admin)
         st_folium(m_admin, width="100%", height=500)
 
     with aba_gestao:
         st.subheader("🛠️ Gerenciar Ocorrência")
-        
-        # Seleção do Protocolo
         prots_disponiveis = df['Protocolo'].unique()
-        escolha = st.selectbox("Selecione o Protocolo para analisar:", prots_disponiveis)
+        escolha = st.selectbox("Selecione o Protocolo:", prots_disponiveis)
         
-        # Filtrar os dados da denúncia selecionada
         detalhes = df[df['Protocolo'] == escolha].iloc[0]
         
-        # --- AQUI MOSTRA O QUE A PESSOA ESCREVEU ---
         st.markdown("### 📝 Relato do Usuário")
-        
         col_info1, col_info2 = st.columns(2)
         with col_info1:
             st.info(f"**📍 Endereço:**\n{detalhes['Endereco']}")
             st.info(f"**🔍 Ponto de Referência:**\n{detalhes['Referencia']}")
-        
         with col_info2:
-            st.warning(f"**⚠️ Descrição do Problema:**\n{detalhes['Descricao']}")
+            st.warning(f"**⚠️ Descrição:**\n{detalhes['Descricao']}")
             st.write(f"**👤 Autor:** {detalhes['Autor']}")
 
         st.write("---")
-        
-        # Parte de atualizar o status
-        novo_st = st.radio("Atualizar Status para:", ["Pendente 🟡", "Em Manutenção 🛠️", "Resolvido ✅"], horizontal=True)
-        
-        if st.button("Gravar Alteração de Status"):
+        novo_st = st.radio("Status:", ["Pendente 🟡", "Em Manutenção 🛠️", "Resolvido ✅"], horizontal=True)
+        if st.button("Salvar Alteração"):
             df.loc[df['Protocolo'] == escolha, 'Status'] = novo_st
             df.to_csv(CAMINHO_CSV, index=False)
-            st.success(f"O status do protocolo {escolha} foi atualizado!")
+            st.success("Atualizado!")
             st.rerun()
+    
+    # --- BARRA LATERAL COM OS BOTÕES ---
+    st.sidebar.image("hamtaro.webp", width=100)
+    
+    # NOVO BOTÃO: LIMPAR RESOLVIDOS
+    if st.sidebar.button("🧹 LIMPAR RESOLVIDOS"):
+        df_restante = df[~df['Status'].str.contains("Resolvido", na=False)]
+        df_restante.to_csv(CAMINHO_CSV, index=False)
+        st.sidebar.success("Resolvidos apagados!")
+        st.rerun()
+
+    if st.sidebar.button("🗑️ APAGAR TUDO"):
+        os.remove(CAMINHO_CSV)
+        st.rerun()
+        
+    if st.sidebar.button("🚪 Sair"):
+        del st.session_state.admin_logado
+        st.rerun()
 else:
     st.info("Sem dados.")
