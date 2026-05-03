@@ -7,10 +7,27 @@ import time
 # --- CONFIGURAÇÃO ---
 st.set_page_config(page_title="Adote uma Árvore | Biomas JP", layout="wide", page_icon="🌳")
 
+# CSS CORRIGIDO: Força cores escuras nos textos e fundos claros nos cards para visibilidade total
 st.markdown("""
     <style>
-    .tree-card { background-color: #f0fff4; padding: 20px; border-radius: 15px; border: 2px solid #2f855a; text-align: center; }
+    /* Estilo para os cards de métricas e status */
+    [data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        padding: 15px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        border: 1px solid #2f855a !important;
+    }
+    [data-testid="stMetricLabel"] { color: #2d3748 !important; font-weight: bold !important; }
     [data-testid="stMetricValue"] { color: #2f855a !important; }
+    
+    .tree-card { 
+        background-color: white; 
+        padding: 15px; 
+        border-radius: 10px; 
+        border: 1px solid #e2e8f0;
+        margin-bottom: 10px;
+    }
     .main { background-color: #f7fafc; }
     </style>
     """, unsafe_allow_html=True)
@@ -25,18 +42,18 @@ def carregar_dados():
 def salvar_dados(df):
     df.to_csv(CAMINHO_ARVORES, index=False)
 
-# --- CATÁLOGO COMPLETO DE ESPÉCIES NATIVAS DE JOÃO PESSOA ---
+# --- CATÁLOGO COM LINKS DE IMAGENS ATUALIZADOS ---
 especies = {
-    "Ipê-Amarelo": {"img": "https://images.unsplash.com/photo-1622322062602-0e98031a0e98?w=400", "desc": "Árvore símbolo do Brasil, comum na Mata Atlântica paraibana."},
-    "Pau-Brasil": {"img": "https://images.unsplash.com/photo-1613063412534-1925343567df?w=400", "desc": "Espécie histórica que deu nome ao país, nativa das nossas matas."},
-    "Baobá": {"img": "https://images.unsplash.com/photo-1518992028580-6d57bd80f2dd?w=400", "desc": "Árvores majestosas, JP possui exemplares históricos famosos."},
-    "Sucupira": {"img": "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400", "desc": "Resistente e medicinal, muito presente no ecossistema de Tabuleiro."},
-    "Cajueiro": {"img": "https://images.unsplash.com/photo-1621460241093-0667e41b7167?w=400", "desc": "Nativo do litoral, essencial para a fauna e culinária local."},
-    "Mangue-Vermelho": {"img": "https://images.unsplash.com/photo-1590604518086-7a4f32a853bc?w=400", "desc": "Berço da vida marinha, protege as margens dos nossos rios."},
-    "Oiti": {"img": "https://images.unsplash.com/photo-1596716790906-8d1844b2f87c?w=400", "desc": "A 'sombra' clássica das ruas de João Pessoa."},
-    "Aroeira-da-Praia": {"img": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=400", "desc": "Nativa de restinga, ajuda na fixação das dunas no nosso litoral."},
-    "Pau-Ferro": {"img": "https://images.unsplash.com/photo-1463936575829-25148e1db1b8?w=400", "desc": "Tronco liso e marmorizado, belíssima para arborização urbana."},
-    "Pau-d'arco": {"img": "https://images.unsplash.com/photo-1520121401995-928cd50d4e27?w=400", "desc": "Outro nome dado aos Ipês, variando entre roxo, rosa e branco."}
+    "Ipê-Amarelo": {"img": "https://img.freepik.com/fotos-gratis/ipe-amarelo-florescendo-no-parque_23-2148914041.jpg", "desc": "Árvore símbolo do Brasil."},
+    "Pau-Brasil": {"img": "https://img.freepik.com/fotos-gratis/arvore-verde-crescendo-na-natureza_23-2148821422.jpg", "desc": "Espécie histórica nativa."},
+    "Baobá": {"img": "https://img.freepik.com/fotos-gratis/arvores-de-baoba-majestosas-na-natureza_23-2150754160.jpg", "desc": "Árvore milenar e sagrada."},
+    "Sucupira": {"img": "https://img.freepik.com/fotos-gratis/floresta-tropical-exotica-com-vegetacao-densa_23-2150764123.jpg", "desc": "Resistente e medicinal."},
+    "Cajueiro": {"img": "https://img.freepik.com/fotos-gratis/deliciosos-cajus-na-arvore_23-2148963953.jpg", "desc": "Nativo do nosso litoral."},
+    "Mangue": {"img": "https://img.freepik.com/fotos-gratis/belo-ecossistema-de-manguezais_23-2150711925.jpg", "desc": "Protetor dos rios."},
+    "Oiti": {"img": "https://img.freepik.com/fotos-gratis/folhas-verdes-frescas-no-ramo-da-arvore_23-2148130386.jpg", "desc": "A sombra das ruas de JP."},
+    "Aroeira": {"img": "https://img.freepik.com/fotos-gratis/detalhe-da-natureza-folhas-verdes_23-2148111956.jpg", "desc": "Nativa de restinga."},
+    "Pau-Ferro": {"img": "https://img.freepik.com/fotos-gratis/tronco-de-arvore-com-textura-unica_23-2148954712.jpg", "desc": "Tronco marmorizado."},
+    "Pau-d'arco": {"img": "https://img.freepik.com/fotos-gratis/belas-flores-cor-de-rosa-na-arvore_23-2148883652.jpg", "desc": "Beleza exuberante."}
 }
 
 st.title("🌳 Adote uma Árvore Nativa")
@@ -45,83 +62,71 @@ st.markdown("### LEGO Explorers: Recuperando o Bioma de João Pessoa")
 tab1, tab2 = st.tabs(["🌱 Escolher Muda", "🏡 Meu Jardim"])
 
 with tab1:
-    st.subheader("Catálogo de Espécies da Nossa Região")
-    
-    # Grid de 5 colunas para caber todas as espécies de forma organizada
+    st.subheader("Selecione uma espécie para começar")
     cols = st.columns(5)
     for i, (nome, info) in enumerate(especies.items()):
-        idx_col = i % 5
-        with cols[idx_col]:
+        with cols[i % 5]:
+            st.markdown(f'<div class="tree-card">', unsafe_allow_html=True)
             st.image(info['img'], use_container_width=True)
             st.markdown(f"**{nome}**")
-            if st.button(f"Adotar {nome}", key=f"btn_{nome}"):
+            if st.button(f"Adotar", key=f"btn_{nome}"):
                 st.session_state.especie_selecionada = nome
+            st.markdown('</div>', unsafe_allow_html=True)
     
     if 'especie_selecionada' in st.session_state:
         st.divider()
         with st.form("form_adocao"):
-            st.success(f"Você escolheu o **{st.session_state.especie_selecionada}**")
+            st.success(f"Espécie: **{st.session_state.especie_selecionada}**")
             n_dono = st.text_input("Seu Nome:")
-            n_arvore = st.text_input("Nome da sua Árvore:")
-            if st.form_submit_button("Finalizar Adoção"):
+            n_arvore = st.text_input("Nome da Árvore:")
+            if st.form_submit_button("Confirmar Adoção"):
                 if n_dono and n_arvore:
                     df = carregar_dados()
-                    nova = {
-                        "Dono": n_dono, "Nome_Arvore": n_arvore, "Especie": st.session_state.especie_selecionada,
-                        "XP": 0, "Nivel": "Semente 🌰", "Saude": 100, "Ultimo_Cuidado": datetime.now().strftime("%d/%m/%Y %H:%M")
-                    }
+                    nova = {"Dono": n_dono, "Nome_Arvore": n_arvore, "Especie": st.session_state.especie_selecionada,
+                            "XP": 0, "Nivel": "Semente 🌰", "Saude": 100, "Ultimo_Cuidado": datetime.now().strftime("%d/%m/%Y %H:%M")}
                     df = pd.concat([df, pd.DataFrame([nova])], ignore_index=True)
                     salvar_dados(df)
                     st.balloons()
-                    st.success(f"{n_arvore} foi plantada virtualmente!")
-                else: st.error("Preencha os nomes!")
+                    st.success("Plantada com sucesso!")
+                    time.sleep(1)
+                    st.rerun()
 
 with tab2:
     df = carregar_dados()
     if df.empty:
-        st.info("O jardim está vazio. Adote uma árvore na aba ao lado!")
+        st.info("Adote uma árvore primeiro!")
     else:
-        st.subheader("Acompanhe o Crescimento")
-        selecionada = st.selectbox("Qual árvore você quer cuidar?", df['Nome_Arvore'].tolist())
-        d = df[df['Nome_Arvore'] == selecionada].iloc[0]
+        sel = st.selectbox("Escolha sua árvore:", df['Nome_Arvore'].tolist())
+        d = df[df['Nome_Arvore'] == sel].iloc[0]
         
-        # Sistema de Nível
         xp = d['XP']
         if xp < 50: niv, icon = "Semente", "🌰"
         elif xp < 150: niv, icon = "Muda", "🌱"
         elif xp < 350: niv, icon = "Jovem", "🌿"
         else: niv, icon = "Adulta", "🌳"
         
-        col_img, col_info = st.columns([1, 2])
-        with col_img:
-            st.markdown(f"<h1 style='text-align: center; font-size: 100px;'>{icon}</h1>", unsafe_allow_html=True)
-            st.markdown(f"<h3 style='text-align: center;'>Nível: {niv}</h3>", unsafe_allow_html=True)
-        
-        with col_info:
-            st.markdown(f"## {d['Nome_Arvore']}")
-            st.caption(f"Espécie: {d['Especie']} | Tutor: {d['Dono']}")
-            st.write(f"**Experiência Atual:** {xp} XP")
-            st.progress(min((xp % 100) / 100, 1.0) if xp < 400 else 1.0)
-            
-            st.write("---")
-            st.markdown("### Ações de Cuidado")
-            ca1, ca2, ca3 = st.columns(3)
-            
-            if ca1.button("💧 Regar (+10)"):
-                df.loc[df['Nome_Arvore'] == selecionada, 'XP'] += 10
-                salvar_dados(df); st.toast("Regado!"); time.sleep(0.5); st.rerun()
-            
-            if ca2.button("💩 Adubar (+25)"):
-                df.loc[df['Nome_Arvore'] == selecionada, 'XP'] += 25
-                salvar_dados(df); st.toast("Nutrido!"); time.sleep(0.5); st.rerun()
+        col_icon, col_txt = st.columns([1, 2])
+        with col_icon:
+            st.markdown(f"<h1 style='text-align: center; font-size: 80px;'>{icon}</h1>", unsafe_allow_html=True)
+        with col_txt:
+            st.metric("Nível", niv)
+            st.write(f"**Tutor:** {d['Dono']} | **Espécie:** {d['Especie']}")
+            st.write(f"**XP Total:** {xp}")
+            st.progress(min((xp % 100)/100, 1.0) if xp < 400 else 1.0)
 
-            if ca3.button("☀️ Sol (+5)"):
-                df.loc[df['Nome_Arvore'] == selecionada, 'XP'] += 5
-                salvar_dados(df); st.toast("Luz recebida!"); time.sleep(0.5); st.rerun()
+        st.divider()
+        ca1, ca2, ca3 = st.columns(3)
+        if ca1.button("💧 Regar (+10)"):
+            df.loc[df['Nome_Arvore'] == sel, 'XP'] += 10
+            salvar_dados(df); st.toast("💧 Regada!"); time.sleep(0.5); st.rerun()
+        if ca2.button("💩 Adubar (+25)"):
+            df.loc[df['Nome_Arvore'] == sel, 'XP'] += 25
+            salvar_dados(df); st.toast("💩 Adubada!"); time.sleep(0.5); st.rerun()
+        if ca3.button("☀️ Sol (+5)"):
+            df.loc[df['Nome_Arvore'] == sel, 'XP'] += 5
+            salvar_dados(df); st.toast("☀️ Sol recebido!"); time.sleep(0.5); st.rerun()
 
 st.sidebar.image("hamtaro.webp", width=100)
-st.sidebar.markdown("### LEGO EXPLORERS")
-if st.sidebar.button("🗑️ Resetar Jardim (Cuidado)"):
-    if os.path.exists(CAMINHO_ARVORES):
-        os.remove(CAMINHO_ARVORES)
-        st.rerun()
+if st.sidebar.button("🗑️ Resetar Jardim"):
+    if os.path.exists(CAMINHO_ARVORES): os.remove(CAMINHO_ARVORES)
+    st.rerun()
