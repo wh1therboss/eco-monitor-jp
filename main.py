@@ -4,14 +4,36 @@ import time
 
 st.set_page_config(page_title="BIOGLOW | LEGO Explorers", layout="wide")
 
-# --- CSS GLOBAL PARA O FUNDO PRETO ---
+# --- CSS DESTRUIDOR DE BARRA LATERAL ---
 st.markdown("""
     <style>
+        /* Esconde a barra lateral inteira */
+        [data-testid="stSidebar"] {
+            display: none;
+        }
+        
+        /* Esconde o botão de abrir a barra lateral (o > que fica no canto) */
+        [data-testid="stSidebarNav"] {
+            display: none;
+        }
+        
+        /* Remove o padding que o Streamlit reserva para a lateral */
+        .block-container {
+            margin-left: auto;
+            margin-right: auto;
+            max-width: 100% !important;
+            padding-top: 0rem !important;
+        }
+
+        /* Esconde o header padrão do Streamlit (onde fica o deploy/menu) */
+        header {visibility: hidden;}
+        
+        /* Fundo preto total */
         .main { background-color: #000000 !important; }
-        [data-testid="stHeader"] { visibility: hidden; }
-        .block-container { padding: 0; }
     </style>
 """, unsafe_allow_html=True)
+
+# ... Resto do seu código da animação (aquele com components.html que a gente fez) ...
 
 # --- FUNÇÃO DA ANIMAÇÃO (HTML PURO) ---
 def render_intro(texto, final=False):
