@@ -3,39 +3,41 @@ import time
 
 st.set_page_config(page_title="BIOGLOW | LEGO Explorers", layout="wide", page_icon="🍃")
 
-# --- CSS PARA ESCONDER A SIDEBAR E CRIAR O DESIGN PERSONALIZADO ---
+# --- CSS DEFINITIVO: FUNDO PRETO, MENU NO TOPO E ANIMAÇÕES ---
 st.markdown("""
     <style>
-        /* Esconde o menu lateral original */
+        /* Remove paddings padrão do Streamlit para o menu colar no topo */
+        .block-container { padding-top: 0rem; padding-bottom: 0rem; }
+        [data-testid="stHeader"] { display: none; }
         [data-testid="stSidebar"] { display: none; }
-        [data-testid="stHeader"] { background: rgba(0,0,0,0); }
         
-        /* Fundo Preto para o corpo do site durante a intro */
+        /* Fundo do site */
         .main { background-color: #000000; }
 
-        /* Barra de Navegação Superior Estilo Inovatec */
+        /* Menu Superior 'Colado' Estilo Inovatec */
         .nav-container {
             display: flex;
             justify-content: center;
-            align-items: center;
-            background-color: #111111;
-            padding: 15px;
-            position: sticky;
-            top: 0;
-            z-index: 999;
-            border-bottom: 2px solid #2f855a;
-            gap: 25px;
+            background-color: #000000;
+            padding: 20px 0;
+            border-bottom: 1px solid #222;
+            width: 100%;
+            margin-bottom: 40px;
         }
         .nav-link {
             color: white !important;
             text-decoration: none;
-            font-weight: bold;
-            font-family: 'sans-serif';
+            font-weight: 500;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0 20px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
             transition: 0.3s;
         }
         .nav-link:hover { color: #2f855a !important; }
 
-        /* Animação da Folha e Palavras */
+        /* Tela de Introdução */
         .intro-screen {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -47,37 +49,42 @@ st.markdown("""
             z-index: 9999;
         }
         
-        .folha-anim {
-            font-size: 100px;
-            animation: crescer 3s ease-out forwards;
+        /* Folha Branca Minimalista */
+        .folha-branca {
+            font-size: 120px;
+            color: white;
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.3));
+            animation: crescer 0.8s ease-out forwards;
         }
 
         @keyframes crescer {
-            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
 
         .palavra-anim {
             color: white;
-            font-size: 30px;
-            margin-top: 20px;
-            font-family: 'monospace';
-            letter-spacing: 5px;
+            font-size: 22px;
+            margin-top: 30px;
+            font-family: 'Arial', sans-serif;
+            letter-spacing: 8px;
             text-transform: uppercase;
+            font-weight: 300;
         }
         
-        .bioglow-final {
+        .bioglow-box {
             background-color: #2f855a;
             color: white;
-            padding: 10px 40px;
-            font-size: 60px;
+            padding: 15px 50px;
+            font-size: 45px;
             font-weight: bold;
-            margin-top: 20px;
+            margin-top: 25px;
+            letter-spacing: 5px;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# --- LÓGICA DA ANIMAÇÃO DE ABERTURA ---
+# --- LÓGICA DA INTRO (RÁPIDA) ---
 if 'abertura_concluida' not in st.session_state:
     placeholder = st.empty()
     palavras = ["Persistência", "Inovação", "Equipe", "Resiliência", "Amizade"]
@@ -86,36 +93,36 @@ if 'abertura_concluida' not in st.session_state:
         with placeholder.container():
             st.markdown(f"""
                 <div class="intro-screen">
-                    <div class="folha-anim">🍃</div>
+                    <div class="folha-branca">🍃</div>
                     <div class="palavra-anim">{p}</div>
                 </div>
             """, unsafe_allow_html=True)
-            time.sleep(1.2) # Velocidade da troca das palavras
+            time.sleep(0.6) # Velocidade rápida mas legível
     
-    # Tela Final da Intro: BIOGLOW
+    # BIOGLOW FINAL
     with placeholder.container():
         st.markdown(f"""
             <div class="intro-screen">
-                <div style="color: white; font-size: 20px; margin-bottom: 10px; letter-spacing: 10px;">LEGO EXPLORERS</div>
-                <div class="folha-anim">🍃</div>
-                <div class="bioglow-final">BIOGLOW</div>
+                <div style="color: rgba(255,255,255,0.6); font-size: 14px; letter-spacing: 12px; margin-bottom: 20px;">LEGO EXPLORERS</div>
+                <div class="folha-branca">🍃</div>
+                <div class="bioglow-box">BIOGLOW</div>
             </div>
         """, unsafe_allow_html=True)
-        time.sleep(2.5)
+        time.sleep(1.8)
     
     placeholder.empty()
     st.session_state.abertura_concluida = True
 
-# --- MENU SUPERIOR (APARECE DEPOIS DA INTRO) ---
-st.markdown(f"""
+# --- CONTEÚDO PÓS-INTRO ---
+# Menu "Colado" no topo
+st.markdown("""
     <div class="nav-container">
-        <a class="nav-link" href="/adote_uma_arvore" target="_self">🌳 ADOTAR</a>
-        <a class="nav-link" href="/Ilumina_JP" target="_self">💡 ILUMINA JP</a>
-        <a class="nav-link" href="/acompanhar_denuncias" target="_self">🕵️ STATUS</a>
-        <a class="nav-link" href="/admin_central" target="_self">🔐 ADMIN</a>
+        <a class="nav-link" href="/adote_uma_arvore" target="_self">Adotar</a>
+        <a class="nav-link" href="/Ilumina_JP" target="_self">Ilumina JP</a>
+        <a class="nav-link" href="/acompanhar_denuncias" target="_self">Status</a>
+        <a class="nav-link" href="/admin_central" target="_self">Admin</a>
     </div>
 """, unsafe_allow_html=True)
 
-# --- CONTEÚDO DA HOME ---
-st.title("Bem-vindo ao BIOGLOW")
-st.write("Inovação tecnológica para uma João Pessoa mais sustentável.")
+st.markdown("<h1 style='color:white; text-align:center;'>Bem-vindo ao BIOGLOW</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#888; text-align:center;'>Inovação tecnológica para uma João Pessoa mais sustentável.</p>", unsafe_allow_html=True)
