@@ -2,44 +2,35 @@ import streamlit as st
 import streamlit.components.v1 as components
 import time
 
-# Configuração da página (Ícone branco para combinar)
 st.set_page_config(page_title="BIOGLOW | LEGO Explorers", layout="wide")
 
-# --- CSS DESTRUIDOR: MATA SIDEBAR, BORDAS E DEIXA TUDO PRETO ---
+# --- CSS PARA ELIMINAR A BORDA DO SITE (MOLDURA) ---
 st.markdown("""
     <style>
-        /* Mata a barra lateral e o botão de abrir (>) */
-        [data-testid="stSidebar"], [data-testid="stSidebarNav"] { display: none; }
-        
-        /* Remove o topo padrão e paddings */
-        header { visibility: hidden; }
-        .block-container { padding: 0 !important; max-width: 100%; }
-        
-        /* Fundo Preto Absoluto */
-        .main { background-color: #000000 !important; }
+        /* 1. Remove a borda/espaçamento ao redor de todo o site */
+        .main .block-container {
+            padding: 0px !important;
+            margin: 0px !important;
+            max-width: 100% !important;
+        }
 
-        /* Estilo do Menu Superior (Sem borda verde, apenas linha sutil) */
-        .nav-container {
-            display: flex;
-            justify-content: center;
-            background-color: #000000;
-            padding: 30px 0;
-            border-bottom: 1px solid #111;
+        /* 2. Garante que o fundo preto cubra tudo, sem respiros */
+        .main {
+            background-color: #000000 !important;
         }
-        .nav-link {
-            color: #FFFFFF !important;
-            text-decoration: none;
-            font-weight: 300;
-            margin: 0 30px;
-            font-size: 11px;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            opacity: 0.5;
-            transition: 0.3s;
+
+        /* 3. Esconde a barra lateral e o header pra não empurrar o conteúdo */
+        [data-testid="stSidebar"], [data-testid="stSidebarNav"] { display: none; }
+        header { visibility: hidden; }
+        
+        /* 4. Remove espaços extras que o Streamlit cria no topo */
+        div[data-testid="stAppViewContainer"] > section:nth-child(2) > div:nth-child(1) {
+            padding-top: 0px !important;
         }
-        .nav-link:hover { opacity: 1; }
     </style>
 """, unsafe_allow_html=True)
+
+# ... seu código de animação e conteúdo aqui ...
 
 # --- FUNÇÃO DE RENDERIZAÇÃO (HTML PURO PARA NÃO BUGAR) ---
 def render_intro(texto, final=False):
