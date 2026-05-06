@@ -1,92 +1,94 @@
 import streamlit as st
-import pandas as pd
-import os
+import time
 
-# 1. CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="EcoMonitor JP | LEGO Explorers", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="BIOGLOW | LEGO Explorers", layout="wide", page_icon="🌱")
 
-# CSS para esconder a barra lateral antes do login
-if 'autenticado' not in st.session_state or not st.session_state.autenticado:
-    st.markdown("""
-        <style>
-            [data-testid="stSidebarNav"] {display: none;}
-            [data-testid="collapsedControl"] {display: none;}
-        </style>
-    """, unsafe_allow_html=True)
+# --- ESTILO CSS PARA A ANIMAÇÃO E MENU SUPERIOR ---
+st.markdown("""
+<style>
+    /* Esconder o menu padrão do Streamlit para parecer um site real */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 
-# --- BANCO DE DADOS DE USUÁRIOS ---
-USER_DB = "usuarios.csv"
+    /* Fundo Preto da Abertura */
+    .intro-bg {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: black;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        animation: fadeOut 1s ease-in-out 7s forwards; /* Some depois de 7 segundos */
+    }
 
-def carregar_usuarios():
-    if os.path.exists(USER_DB):
-        return pd.read_csv(USER_DB)
-    return pd.DataFrame(columns=['usuario', 'senha'])
+    /* A Folha Crescendo */
+    .folha {
+        font-size: 100px;
+        animation: crescer 3s ease-out forwards;
+        color: white;
+    }
 
-def salvar_usuario(u, s):
-    df = carregar_usuarios()
-    if u in df['usuario'].values: return False
-    pd.concat([df, pd.DataFrame([{'usuario': u, 'senha': s}])], ignore_index=True).to_csv(USER_DB, index=False)
-    return True
+    /* Palavras que trocam */
+    .palavras {
+        color: white;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 24px;
+        margin-top: 20px;
+        height: 30px;
+    }
 
-# --- LÓGICA DE ACESSO ---
-if 'autenticado' not in st.session_state:
-    st.session_state.autenticado = False
+    @keyframes crescer {
+        0% { transform: scale(0) translateY(50px); opacity: 0; }
+        100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
 
-# --- TELA DE LOGIN (COM HAMTARO E LEGO EXPLORERS) ---
-if not st.session_state.autenticado:
-    col1, col2, col3 = st.columns([1, 2, 1])
+    @keyframes fadeOut {
+        to { opacity: 0; visibility: hidden; }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- LÓGICA DA ANIMAÇÃO DE ABERTURA ---
+if 'intro_visto' not in st.session_state:
+    placeholder = st.empty()
+    palavras = ["Persistência", "Inovação", "Equipe", "Resiliência", "Amizade"]
     
-    with col2:
-        # Trazendo o Hamtaro de volta
-        if os.path.exists("hamtaro.webp"):
-            st.image("hamtaro.webp", width=150)
-            
-        st.markdown("<h1 style='text-align: center; color: #0055BF;'>♻️ EcoMonitor João Pessoa</h1>", unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align: center;'>Equipe: LEGO Explorers 🚀</h3>", unsafe_allow_html=True)
+    with placeholder.container():
+        # HTML da Intro
+        for p in palavras:
+            st.markdown(f"""
+            <div class="intro-bg">
+                <div class="folha">🍃</div>
+                <div class="palavras">{p}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(1.2) # Tempo de cada palavra
         
-        aba1, aba2 = st.tabs(["🔑 Entrar", "📝 Criar Conta"])
-        
-        with aba1:
-            u = st.text_input("E-mail:")
-            p = st.text_input("Senha:", type="password")
-            if st.button("ENTRAR NO SISTEMA"):
-                users = carregar_usuarios()
-                if not users[(users['usuario'] == u) & (users['senha'] == p)].empty:
-                    st.session_state.autenticado = True
-                    st.session_state.user = u.split('@')[0].capitalize()
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos")
-                    
-        with aba2:
-            st.subheader("Junte-se aos Explorers")
-            nu = st.text_input("Novo E-mail:")
-            np = st.text_input("Nova Senha:", type="password")
-            if st.button("Finalizar Cadastro"):
-                if nu and np and salvar_usuario(nu, np):
-                    st.success("Conta criada! Agora use a aba 'Entrar'.")
-                else:
-                    st.error("Erro ao cadastrar ou usuário já existe.")
-    st.stop()
+        # Tela Final da Intro: BIOGLOW
+        st.markdown(f"""
+        <div class="intro-bg">
+            <div style="color: white; font-size: 20px; margin-bottom: 10px;">LEGO EXPLORERS</div>
+            <div class="folha">🍃</div>
+            <div style="background-color: #2f855a; color: white; padding: 10px 40px; font-size: 50px; font-weight: bold; margin-top: 20px;">BIOGLOW</div>
+        </div>
+        """, unsafe_allow_html=True)
+        time.sleep(2.5)
+    
+    placeholder.empty()
+    st.session_state.intro_visto = True
 
-# --- ÁREA LOGADA (AQUI OS SISTEMAS APARECEM) ---
-st.sidebar.image("hamtaro.webp", width=100) # Hamtaro na barra lateral
-st.sidebar.success(f"Conectado: {st.session_state.user}")
-st.sidebar.markdown("---")
-st.sidebar.write("🏆 **LEGO Explorers**")
+# --- MENU SUPERIOR (SUBSTITUINDO A SIDEBAR) ---
+st.markdown("""
+<div style="display: flex; justify-content: space-around; background-color: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 30px;">
+    <a href="/adote_uma_arvore" target="_self" style="color: white; text-decoration: none; font-weight: bold;">🌳 ADOTAR</a>
+    <a href="/Ilumina_JP" target="_self" style="color: white; text-decoration: none; font-weight: bold;">💡 ILUMINA JP</a>
+    <a href="/acompanhar_denuncias" target="_self" style="color: white; text-decoration: none; font-weight: bold;">🕵️ STATUS</a>
+    <a href="/admin_central" target="_self" style="color: white; text-decoration: none; font-weight: bold;">🔐 ADMIN</a>
+</div>
+""", unsafe_allow_html=True)
 
-if st.sidebar.button("Sair do Sistema"):
-    st.session_state.autenticado = False
-    st.rerun()
-
-# Painel Principal
-st.title(f"👋 Olá, {st.session_state.user}!")
-st.markdown("### Bem-vindo ao Painel da LEGO Explorers")
-st.write("Todos os sistemas de monitoramento de João Pessoa estão liberados na barra lateral.")
-
-col_ham1, col_ham2 = st.columns(2)
-with col_ham1:
-    st.info("💡 **Dica:** Use o EcoColeta para registrar descartes de lixo.")
-with col_ham2:
-    if os.path.exists("hamtaro.webp"):
-        st.image("hamtaro.webp", caption="Hamtaro Explorer", width=200)
+st.title("Bem-vindo ao BIOGLOW")
+st.write("O futuro sustentável de João Pessoa começa aqui.")
